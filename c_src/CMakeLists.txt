@@ -1,8 +1,5 @@
 cmake_minimum_required(VERSION 3.13)
 
-set(CMAKE_C_COMPILER_WORKS 1)
-set(CMAKE_CXX_COMPILER_WORKS 1)
-
 # Mac adds extra flags
 set(HAVE_FLAG_SEARCH_PATHS_FIRST 0)
 
@@ -14,22 +11,31 @@ if(NOT DEFINED ENV{rlbox_SOURCE_DIR})
   message(FATAL_ERROR "Set rlbox_SOURCE_DIR environment variable")
 endif()
 
+if(NOT DEFINED ENV{wasiclang_SOURCE_DIR})
+  message(FATAL_ERROR "Set wasiclang_SOURCE_DIR environment variable")
+endif()
+
 if(NOT DEFINED ENV{WASM2C_COMPILER_DIR})
   message(FATAL_ERROR "Set WASM2C_COMPILER_DIR environment variable")
 endif()
 
 set(rlbox_SOURCE_DIR $ENV{rlbox_SOURCE_DIR})
+set(wasiclang_SOURCE_DIR $ENV{wasiclang_SOURCE_DIR})
 set(WASM2C_COMPILER_DIR $ENV{WASM2C_COMPILER_DIR})
 
-set(CMAKE_C_COMPILER emcc)
-set(CMAKE_CXX_COMPILER em++)
+set(CMAKE_C_COMPILER ${wasiclang_SOURCE_DIR}/bin/clang)
+set(CMAKE_CXX_COMPILER ${wasiclang_SOURCE_DIR}/bin/clang++)
 set(CMAKE_BUILD_TYPE Release)
 
+# Apply settings suitable for wasm module compilation
+set(CMAKE_C_FLAGS
+    "--sysroot ${wasiclang_SOURCE_DIR}/share/wasi-sysroot/")
 # Link flags are set by default on Mac - clearing this
 set(CMAKE_C_LINK_FLAGS "")
-set(CMAKE_EXE_LINKER_FLAGS "-Wl,--export-all --no-entry -Wl,--growable-table")
+set(CMAKE_EXE_LINKER_FLAGS "-Wl,--export-all -Wl,--no-entry -Wl,--growable-table")
 
 add_executable(glue_lib_wasm2c.wasm
+               wasm2c_sandbox_wrapper.c
                ${rlbox_SOURCE_DIR}/code/tests/rlbox_glue/lib/libtest.c)
 
 set(GLUE_LIB_PATH "${CMAKE_BINARY_DIR}/glue_lib_wasm2c.c")

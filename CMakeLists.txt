@@ -94,6 +94,24 @@ endif()
 add_subdirectory("${catch2_SOURCE_DIR}")
 list(APPEND CMAKE_MODULE_PATH "${catch2_SOURCE_DIR}/contrib")
 
+if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+  FetchContent_Declare(
+    wasiclang
+    URL
+      https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-11/wasi-sdk-11.0-macos.tar.gz
+    )
+else()
+  FetchContent_Declare(
+    wasiclang
+    URL
+      https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-11/wasi-sdk-11.0-linux.tar.gz
+    )
+endif()
+FetchContent_GetProperties(wasiclang)
+if(NOT wasiclang_POPULATED)
+  FetchContent_Populate(wasiclang)
+endif()
+
 FetchContent_Declare(
   mod_wasm2c
   GIT_REPOSITORY https://github.com/PLSysSec/wasm2c_sandbox_compiler
@@ -112,10 +130,12 @@ set(WASM2C_RUNTIME_DIR "${mod_wasm2c_SOURCE_DIR}/build/")
 set(WASM2C_COMPILER_DIR "${mod_wasm2c_SOURCE_DIR}/build/")
 set(WASM2C_COMPILER_PATH "${WASM2C_COMPILER_DIR}/wasm2c")
 
+set(C_SOURCE_FILES "${CMAKE_SOURCE_DIR}/c_src/wasm2c_sandbox_wrapper.c")
 set(GLUE_LIB_WASM "${CMAKE_BINARY_DIR}/wasm/glue_lib_wasm2c.wasm")
 set(GLUE_LIB_C "${CMAKE_BINARY_DIR}/wasm/glue_lib_wasm2c.c")
 
 add_custom_command(OUTPUT "${GLUE_LIB_C}"
+                   DEPENDS ${C_SOURCE_FILES}
                    WORKING_DIRECTORY "${mod_wasm2c_SOURCE_DIR}"
                    COMMAND ${CMAKE_COMMAND}
                            -DCMAKE_BUILD_TYPE=Release
@@ -138,7 +158,8 @@ add_custom_command(OUTPUT "${GLUE_LIB_C}"
                            --target
                            wasm-rt-impl
                    COMMAND rlbox_SOURCE_DIR=${rlbox_SOURCE_DIR}
-                           WASM2C_COMPILER_DIR="${WASM2C_COMPILER_DIR}"
+                           wasiclang_SOURCE_DIR=${wasiclang_SOURCE_DIR}
+                           WASM2C_COMPILER_DIR=${WASM2C_COMPILER_DIR}
                            ${CMAKE_COMMAND}
                            -S
                            ${CMAKE_SOURCE_DIR}/c_src
