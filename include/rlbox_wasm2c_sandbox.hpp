@@ -17,6 +17,8 @@
 #include <utility>
 #include <vector>
 
+#include <dlfcn.h>
+
 #define RLBOX_WASM2C_UNUSED(...) (void)__VA_ARGS__
 
 // Use the same convention as rlbox to allow applications to customize the
@@ -238,8 +240,11 @@ public:
 
 private:
   void* sandbox = nullptr;
+  wasm2c_sandbox_funcs_t sandbox_info {0};
+  wasm_rt_memory_t* sandbox_memory_info = nullptr;
+  void* library = nullptr;
   uintptr_t heap_base;
-  uintptr_t exec_env = 0;
+  void* exec_env = 0;
   void* malloc_index = 0;
   void* free_index = 0;
   size_t return_slot_size = 0;
@@ -256,114 +261,6 @@ private:
 #ifndef RLBOX_EMBEDDER_PROVIDES_TLS_STATIC_VARIABLES
   thread_local static inline rlbox_wasm2c_sandbox_thread_data thread_data{ 0, 0 };
 #endif
-
-  template<typename T_Formal, typename T_Actual>
-  inline Wasm2cValue serialize_arg(T_PointerType* allocations, T_Actual arg)
-  {
-    Wasm2cValue ret;
-    using T = T_Formal;
-    if constexpr ((std::is_integral_v<T> || std::is_enum_v<T>)&&sizeof(T) <=
-                  sizeof(uint32_t)) {
-      static_assert(wasm2c_detail::convert_type_to_wasm_type<T>::wasm2c_type ==
-                    WASM_RT_I32);
-      ret.val_type = WASM_RT_I32;
-      ret.u32 = static_cast<uint32_t>(arg);
-    } else if constexpr ((std::is_integral_v<T> ||
-                          std::is_enum_v<T>)&&sizeof(T) <= sizeof(uint64_t)) {
-      static_assert(wasm2c_detail::convert_type_to_wasm_type<T>::wasm2c_type ==
-                    WASM_RT_I64);
-      ret.val_type = WASM_RT_I64;
-      ret.u64 = static_cast<uint64_t>(arg);
-    } else if constexpr (std::is_same_v<T, float>) {
-      static_assert(wasm2c_detail::convert_type_to_wasm_type<T>::wasm2c_type ==
-                    WASM_RT_F32);
-      ret.val_type = WASM_RT_F32;
-      ret.f32 = arg;
-    } else if constexpr (std::is_same_v<T, double>) {
-      static_assert(wasm2c_detail::convert_type_to_wasm_type<T>::wasm2c_type ==
-                    WASM_RT_F64);
-      ret.val_type = WASM_RT_F64;
-      ret.f64 = arg;
-    } else if constexpr (std::is_class_v<T>) {
-      auto sandboxed_ptr = this->impl_malloc_in_sandbox(sizeof(T));
-      *allocations = sandboxed_ptr;
-      allocations++;
-
-      auto ptr = reinterpret_cast<T*>(
-        this->impl_get_unsandboxed_pointer<T>(sandboxed_ptr));
-      *ptr = arg;
-
-      // sanity check that pointers are stored as i32s
-      static_assert(wasm2c_detail::convert_type_to_wasm_type<T*>::wasm2c_type ==
-                    WASM_RT_I32);
-      ret.val_type = WASM_RT_I32;
-      ret.u32 = sandboxed_ptr;
-    } else {
-      static_assert(wasm2c_detail::false_v<T>,
-                    "Unexpected case for serialize_arg");
-    }
-    return ret;
-  }
-
-  template<typename T_Ret, typename... T_FormalArgs, typename... T_ActualArgs>
-  inline void serialize_args(T_PointerType* /* allocations */,
-                             Wasm2cValue* /* out_wasm2c_args */,
-                             T_Ret (*/* func_ptr */)(T_FormalArgs...),
-                             T_ActualArgs... /* args */)
-  {
-    static_assert(sizeof...(T_FormalArgs) == 0);
-    static_assert(sizeof...(T_ActualArgs) == 0);
-  }
-
-  template<typename T_Ret,
-           typename T_FormalArg,
-           typename... T_FormalArgs,
-           typename T_ActualArg,
-           typename... T_ActualArgs>
-  inline void serialize_args(T_PointerType* allocations,
-                             Wasm2cValue* out_wasm2c_args,
-                             T_Ret (*func_ptr)(T_FormalArg, T_FormalArgs...),
-                             T_ActualArg arg,
-                             T_ActualArgs... args)
-  {
-    RLBOX_WASM2C_UNUSED(func_ptr);
-    *out_wasm2c_args = serialize_arg<T_FormalArg>(allocations, arg);
-    out_wasm2c_args++;
-
-    using T_Curried = T_Ret (*)(T_FormalArgs...);
-    T_Curried curried_func_ptr = nullptr;
-
-    serialize_args(allocations,
-                   out_wasm2c_args,
-                   curried_func_ptr,
-                   std::forward<T_ActualArgs>(args)...);
-  }
-
-  template<typename T_Ret, typename... T_FormalArgs, typename... T_ActualArgs>
-  inline void serialize_return_and_args(T_PointerType* allocations,
-                                        Wasm2cValue* out_wasm2c_args,
-                                        T_Ret (*func_ptr)(T_FormalArgs...),
-                                        T_ActualArgs&&... args)
-  {
-
-    if constexpr (std::is_class_v<T_Ret>) {
-      auto sandboxed_ptr = this->impl_malloc_in_sandbox(sizeof(T_Ret));
-      *allocations = sandboxed_ptr;
-      allocations++;
-
-      // sanity check that pointers are stored as i32s
-      static_assert(wasm2c_detail::convert_type_to_wasm_type<T_Ret*>::wasm2c_type ==
-                    WASM_RT_I32);
-      out_wasm2c_args->val_type = WASM_RT_I32;
-      out_wasm2c_args->u32 = sandboxed_ptr;
-      out_wasm2c_args++;
-    }
-
-    serialize_args(allocations,
-                   out_wasm2c_args,
-                   func_ptr,
-                   std::forward<T_ActualArgs>(args)...);
-  }
 
   template<typename T_FormalRet, typename T_ActualRet>
   inline auto serialize_to_sandbox(T_ActualRet arg)
@@ -429,56 +326,32 @@ private:
   }
 
   template<typename T_Ret, typename... T_Args>
-  static inline constexpr unsigned int get_param_count(
-    T_Ret (*/* dummy for template inference */)(T_Args...) = nullptr)
-  {
-    // Class return types as promoted to args
-    constexpr bool promoted = std::is_class_v<T_Ret>;
-    if constexpr (promoted) {
-      return sizeof...(T_Args) + 1;
-    } else {
-      return sizeof...(T_Args);
-    }
-  }
-
-  template<typename T_Ret, typename... T_Args>
-  inline Wasm2cFunctionSignature get_wasm2c_signature(
-    wasm_rt_type_t* param_types_buffer,
-    T_Ret (*/* dummy for template inference */)(T_Args...) = nullptr) const
+  inline uint32_t get_wasm2c_func_index(
+    // dummy for template inference
+    T_Ret (*)(T_Args...) = nullptr
+  ) const
   {
     // Class return types as promoted to args
     constexpr bool promoted = std::is_class_v<T_Ret>;
 
+    wasm_rt_type_t ret_param_types[] = {
+      wasm2c_detail::convert_type_to_wasm_type<T_Ret>::wasm2c_type,
+      wasm2c_detail::convert_type_to_wasm_type<T_Args>::wasm2c_type...
+    };
+
+    uint32_t param_count = 0;
+    uint32_t ret_count = 0;
+
     if constexpr (promoted) {
-      // wasm2c has no void type, so use i32 for now
-      wasm_rt_type_t ret_type = wasm_rt_type_t::Wasm2cValueType_I32;
-      wasm_rt_type_t param_types[] = {
-        wasm2c_detail::convert_type_to_wasm_type<T_Ret>::wasm2c_type,
-        wasm2c_detail::convert_type_to_wasm_type<T_Args>::wasm2c_type...
-      };
-
-      memcpy(param_types_buffer, param_types, sizeof(param_types));
-
-      Wasm2cFunctionSignature signature{ ret_type,
-                                       sizeof(param_types) /
-                                         sizeof(wasm_rt_type_t),
-                                       param_types_buffer };
-      return signature;
+      param_count = sizeof...(T_Args) + 1;
+      ret_count = 0;
     } else {
-      wasm_rt_type_t ret_type =
-        wasm2c_detail::convert_type_to_wasm_type<T_Ret>::wasm2c_type;
-      wasm_rt_type_t param_types[] = {
-        wasm2c_detail::convert_type_to_wasm_type<T_Args>::wasm2c_type...
-      };
-
-      memcpy(param_types_buffer, param_types, sizeof(param_types));
-
-      Wasm2cFunctionSignature signature{ ret_type,
-                                       sizeof(param_types) /
-                                         sizeof(wasm_rt_type_t),
-                                       param_types_buffer };
-      return signature;
+      param_count = sizeof...(T_Args);
+      ret_count = 1;
     }
+
+    auto ret = sandbox_info.lookup_wasm2c_func_index(sandbox, param_count, ret_count, ret_param_types);
+    return ret;
   }
 
   void ensure_return_slot_size(size_t size)
@@ -496,14 +369,23 @@ private:
   }
 
 protected:
-  // Set external_loads_exist to true, if the host application loads the
-  // library wasm2c_module_path outside of rlbox_wasm2c_sandbox such as via dlopen
-  // or the Windows equivalent
   inline void impl_create_sandbox(const char* wasm2c_module_path)
   {
+    wasm2c_ensure_linked();
     detail::dynamic_check(sandbox == nullptr, "Sandbox already initialized");
-    sandbox = wasm2c_load_module(wasm2c_module_path);
+
+    library = dlopen(wasm2c_module_path, RTLD_LAZY);
+    detail::dynamic_check(library != nullptr, "Could not load wasm2c dynamic library");
+
+    auto get_info_func = reinterpret_cast<wasm2c_sandbox_funcs_t(*)()>(dlsym(library, "get_currlib_wasm2c_sandbox_info"));
+    detail::dynamic_check(get_info_func != nullptr, "wasm2c could not find get_currlib_wasm2c_sandbox_info");
+    sandbox_info = get_info_func();
+
+    sandbox = sandbox_info.create_wasm2c_sandbox();
     detail::dynamic_check(sandbox != nullptr, "Sandbox could not be created");
+
+    sandbox_memory_info = (wasm_rt_memory_t*) sandbox_info.lookup_wasm2c_nonfunc_export(sandbox, "memory");
+    detail::dynamic_check(sandbox_memory_info != nullptr, "Could not get wasm2c sandbox memory info");
 
     heap_base = reinterpret_cast<uintptr_t>(impl_get_memory_location());
     // Check that the address space is larger than the sandbox heap i.e. 4GB
@@ -518,7 +400,7 @@ protected:
                           "Sandbox heap not aligned to 4GB");
 
     // cache these for performance
-    exec_env = wasm2c_get_func_call_env_param(sandbox);
+    exec_env = sandbox;
     malloc_index = impl_lookup_symbol("malloc");
     free_index = impl_lookup_symbol("free");
   }
@@ -528,7 +410,8 @@ protected:
     if (return_slot_size) {
       impl_free_in_sandbox(return_slot);
     }
-    wasm2c_drop_module(sandbox);
+    sandbox_info.destroy_wasm2c_sandbox(sandbox);
+    sandbox = nullptr;
   }
 
   template<typename T>
@@ -559,10 +442,10 @@ protected:
       if (found != internal_callbacks.end()) {
         slot_number = found->second;
       } else {
-        wasm_rt_type_t param_types[get_param_count(static_cast<T>(nullptr))];
-        Wasm2cFunctionSignature sig =
-          get_wasm2c_signature(param_types, static_cast<T>(nullptr));
-        slot_number = wasm2c_register_internal_callback(sandbox, sig, p);
+
+        auto func_type_idx = get_wasm2c_func_index(static_cast<T>(nullptr));
+        slot_number =
+          sandbox_info.add_wasm2c_callback(sandbox, func_type_idx, const_cast<void*>(p));
         internal_callbacks[p] = slot_number;
         slot_assignments[slot_number] = p;
       }
@@ -637,16 +520,18 @@ protected:
     return !(impl_is_pointer_in_sandbox_memory(p));
   }
 
-  inline size_t impl_get_total_memory() { return wasm2c_get_heap_size(sandbox); }
+  inline size_t impl_get_total_memory() { return sandbox_memory_info->size; }
 
   inline void* impl_get_memory_location()
   {
-    return wasm2c_get_heap_base(sandbox);
+    return sandbox_memory_info->data;
   }
 
   void* impl_lookup_symbol(const char* func_name)
   {
-    return wasm2c_lookup_function(sandbox, func_name);
+    std::string prefixed_name = "w2c_";
+    prefixed_name += func_name;
+    return dlsym(library, prefixed_name.c_str());
   }
 
   template<typename T, typename T_Converted, typename... T_Args>
@@ -656,7 +541,6 @@ protected:
     auto& thread_data = *get_rlbox_wasm2c_sandbox_thread_data();
 #endif
     thread_data.sandbox = this;
-    wasm2c_set_curr_instance(sandbox);
 
     // WASM functions are mangled in the following manner
     // 1. All primitive types are left as is and follow an LP32 machine model
@@ -724,7 +608,7 @@ protected:
       wasm2c_detail::change_class_arg_types<T_Converted, T_PointerType>;
 
     // Handle Point 5
-    using T_ConvHeap = wasm2c_detail::prepend_arg_type<T_ConvNoClass, uintptr_t>;
+    using T_ConvHeap = wasm2c_detail::prepend_arg_type<T_ConvNoClass, void*>;
 
     // Function invocation
     auto func_ptr_conv =
@@ -745,7 +629,6 @@ protected:
       impl_free_in_sandbox(allocations_buff[i]);
     }
 
-    wasm2c_clear_curr_instance(sandbox);
     if constexpr (!std::is_void_v<T_Ret>) {
       return ret;
     }
@@ -806,11 +689,9 @@ protected:
       "increase the maximum allowed callbacks or unsadnboxed functions "
       "pointers");
 
-    wasm_rt_type_t param_types[get_param_count<T_Ret, T_Args...>()];
-    Wasm2cFunctionSignature sig =
-      get_wasm2c_signature<T_Ret, T_Args...>(param_types);
+    auto func_type_idx = get_wasm2c_func_index<T_Ret, T_Args...>();
     uint32_t slot_number =
-      wasm2c_register_callback(sandbox, sig, chosen_interceptor);
+      sandbox_info.add_wasm2c_callback(sandbox, func_type_idx, chosen_interceptor);
 
     callback_unique_keys[found_loc] = key;
     callbacks[found_loc] = callback;
@@ -841,7 +722,7 @@ protected:
       RLBOX_ACQUIRE_UNIQUE_GUARD(lock, callback_mutex);
       for (; i < MAX_CALLBACKS; i++) {
         if (callback_unique_keys[i] == key) {
-          wasm2c_unregister_callback(sandbox, callback_slot_assignment[i]);
+          sandbox_info.remove_wasm2c_callback(sandbox, callback_slot_assignment[i]);
           callback_unique_keys[i] = nullptr;
           callbacks[i] = nullptr;
           callback_slot_assignment[i] = 0;

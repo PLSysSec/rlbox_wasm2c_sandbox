@@ -1,5 +1,8 @@
 cmake_minimum_required(VERSION 3.13)
 
+set(CMAKE_C_COMPILER_WORKS 1)
+set(CMAKE_CXX_COMPILER_WORKS 1)
+
 # Mac adds extra flags
 set(HAVE_FLAG_SEARCH_PATHS_FIRST 0)
 
@@ -24,7 +27,7 @@ set(CMAKE_BUILD_TYPE Release)
 
 # Link flags are set by default on Mac - clearing this
 set(CMAKE_C_LINK_FLAGS "")
-set(CMAKE_EXE_LINKER_FLAGS "-Wl,--export-all --no-entry")
+set(CMAKE_EXE_LINKER_FLAGS "-Wl,--export-all --no-entry -Wl,--growable-table")
 
 add_executable(glue_lib_wasm2c.wasm
                ${rlbox_SOURCE_DIR}/code/tests/rlbox_glue/lib/libtest.c)

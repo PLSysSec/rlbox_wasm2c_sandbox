@@ -103,13 +103,19 @@ if(NOT mod_wasm2c_POPULATED)
   FetchContent_Populate(mod_wasm2c)
 endif()
 
+
+# set (mod_wasm2c_SOURCE_DIR "/home/shr/Code/LibrarySandboxing/wasm2c_sandbox_compiler/")
+
 # wasm2c ###################
 
 set(WASM2C_RUNTIME_DIR "${mod_wasm2c_SOURCE_DIR}/build/")
 set(WASM2C_COMPILER_DIR "${mod_wasm2c_SOURCE_DIR}/build/")
 set(WASM2C_COMPILER_PATH "${WASM2C_COMPILER_DIR}/wasm2c")
 
-add_custom_command(OUTPUT "${WASM2C_COMPILER_PATH}"
+set(GLUE_LIB_WASM "${CMAKE_BINARY_DIR}/wasm/glue_lib_wasm2c.wasm")
+set(GLUE_LIB_C "${CMAKE_BINARY_DIR}/wasm/glue_lib_wasm2c.c")
+
+add_custom_command(OUTPUT "${GLUE_LIB_C}"
                    WORKING_DIRECTORY "${mod_wasm2c_SOURCE_DIR}"
                    COMMAND ${CMAKE_COMMAND}
                            -DCMAKE_BUILD_TYPE=Release
@@ -131,9 +137,20 @@ add_custom_command(OUTPUT "${WASM2C_COMPILER_PATH}"
                            --parallel
                            --target
                            wasm-rt-impl
-                   COMMENT "Building wasm2c compiler and runtime")
-
-add_custom_target(wasm2c_release ALL DEPENDS ${WASM2C_COMPILER_PATH})
+                   COMMAND rlbox_SOURCE_DIR=${rlbox_SOURCE_DIR}
+                           WASM2C_COMPILER_DIR="${WASM2C_COMPILER_DIR}"
+                           ${CMAKE_COMMAND}
+                           -S
+                           ${CMAKE_SOURCE_DIR}/c_src
+                           -B
+                           ${CMAKE_BINARY_DIR}/wasm
+                   COMMAND VERBOSE=1
+                           ${CMAKE_COMMAND}
+                           --build
+                           ${CMAKE_BINARY_DIR}/wasm
+                           --target
+                           all
+                   COMMENT "Building wasm2c compiler, runtime and wasm sandboxed library")
 
 # Tests ###################
 
@@ -151,33 +168,11 @@ if(DEV)
   endif()
 endif()
 
+add_library(glue_lib_so SHARED ${GLUE_LIB_C})
+target_include_directories(glue_lib_so PRIVATE ${mod_wasm2c_SOURCE_DIR}/wasm2c)
+
 include(CTest)
 include(Catch)
-
-set(GLUE_LIB_WASM "${CMAKE_BINARY_DIR}/wasm/glue_lib_wasm2c.wasm")
-set(GLUE_LIB_C "${CMAKE_BINARY_DIR}/wasm/glue_lib_wasm2c.c")
-
-add_custom_command(OUTPUT ${GLUE_LIB_WASM} ${GLUE_LIB_C}
-                   WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/c_src
-                   COMMAND rlbox_SOURCE_DIR=${rlbox_SOURCE_DIR}
-                           WASM2C_COMPILER_DIR="${WASM2C_COMPILER_DIR}"
-                           ${CMAKE_COMMAND}
-                           -S
-                           .
-                           -B
-                           ${CMAKE_BINARY_DIR}/wasm
-                   COMMAND VERBOSE=1
-                           ${CMAKE_COMMAND}
-                           --build
-                           ${CMAKE_BINARY_DIR}/wasm
-                           --target
-                           all
-                   COMMENT "Building wasm library")
-
-add_custom_target(glue_lib_wasm ALL DEPENDS wasm2c_release ${GLUE_LIB_WASM} ${GLUE_LIB_C})
-
-add_library(glue_lib_so SHARED ${CMAKE_BINARY_DIR}/wasm/glue_lib_wasm2c.c)
-target_include_directories(glue_lib_so PRIVATE ${mod_wasm2c_SOURCE_DIR}/wasm2c)
 
 find_package(Threads REQUIRED)
 
@@ -207,36 +202,33 @@ if(UNIX AND NOT (${CMAKE_SYSTEM_NAME} MATCHES "Darwin"))
 endif()
 catch_discover_tests(test_rlbox_glue)
 
-# ####
+####
 
-# add_executable(test_rlbox_glue_embed test/test_wasm2c_sandbox_glue_main.cpp
-#                                      test/test_wasm2c_sandbox_glue_embedder_vars.cpp)
-# target_include_directories(test_rlbox_glue_embed PUBLIC include)
-# target_include_directories(test_rlbox_glue_embed
-#                            PUBLIC ${rlbox_SOURCE_DIR}/code/include)
-# target_include_directories(test_rlbox_glue_embed
-#                            PUBLIC ${rlbox_SOURCE_DIR}/code/tests/rlbox_glue)
-# target_include_directories(test_rlbox_glue_embed
-#                            PUBLIC ${rlbox_SOURCE_DIR}/code/tests/rlbox_glue/lib)
+add_executable(test_rlbox_glue_embed test/test_wasm2c_sandbox_glue_main.cpp
+                                     test/test_wasm2c_sandbox_glue_embedder_vars.cpp)
+target_include_directories(test_rlbox_glue_embed PUBLIC ${CMAKE_SOURCE_DIR}/include
+                                           PUBLIC ${rlbox_SOURCE_DIR}/code/include
+                                           PUBLIC ${rlbox_SOURCE_DIR}/code/tests/rlbox_glue
+                                           PUBLIC ${rlbox_SOURCE_DIR}/code/tests/rlbox_glue/lib
+                                           PUBLIC ${rlbox_SOURCE_DIR}/wasm
+                                           PUBLIC ${mod_wasm2c_SOURCE_DIR}/wasm2c
+                                           )
+target_link_directories(test_rlbox_glue_embed PUBLIC ${WASM2C_RUNTIME_DIR})
+target_link_libraries(test_rlbox_glue_embed Catch2::Catch2
+                                      wasm-rt-impl
+                                      ${CMAKE_THREAD_LIBS_INIT}
+                                      ${CMAKE_DL_LIBS}
+)
 
-# target_compile_definitions(test_rlbox_glue_embed PUBLIC
-#                            GLUE_LIB_WASM2C_PATH="${GLUE_LIB_SO}")
+target_compile_definitions(test_rlbox_glue_embed PUBLIC GLUE_LIB_WASM2C_PATH="$<TARGET_FILE:glue_lib_so>")
+add_dependencies(test_rlbox_glue_embed glue_lib_so)
 
-# target_link_libraries(test_rlbox_glue_embed
-#                       Catch2::Catch2
-#                       ${LINK_WASM2C_LIB}
-#                       ${CMAKE_THREAD_LIBS_INIT}
-#                       ${CMAKE_DL_LIBS}
-#                       wasm2c_sandbox
-#                       )
+if(UNIX AND NOT (${CMAKE_SYSTEM_NAME} MATCHES "Darwin"))
+  target_link_libraries(test_rlbox_glue_embed rt)
+endif()
+catch_discover_tests(test_rlbox_glue_embed)
 
-# if(UNIX AND NOT (${CMAKE_SYSTEM_NAME} MATCHES "Darwin"))
-#   target_link_libraries(test_rlbox_glue_embed rt)
-# endif()
-# catch_discover_tests(test_rlbox_glue_embed)
-
-# # Shortcuts ###################
+# Shortcuts ###################
 
 add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} -V)
-add_dependencies(check test_rlbox_glue # test_rlbox_glue_embed
- glue_lib_so)
+add_dependencies(check test_rlbox_glue test_rlbox_glue_embed glue_lib_so)
