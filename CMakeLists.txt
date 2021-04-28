@@ -126,8 +126,8 @@ endif()
 
 # wasm2c ###################
 
-set(WASM2C_RUNTIME_DIR "${mod_wasm2c_SOURCE_DIR}/build_release/")
-set(WASM2C_COMPILER_DIR "${mod_wasm2c_SOURCE_DIR}/build_release/")
+set(WASM2C_RUNTIME_DIR "${mod_wasm2c_SOURCE_DIR}/build/")
+set(WASM2C_COMPILER_DIR "${mod_wasm2c_SOURCE_DIR}/build/")
 set(WASM2C_COMPILER_PATH "${WASM2C_COMPILER_DIR}/wasm2c")
 
 set(C_SOURCE_FILES "${CMAKE_SOURCE_DIR}/c_src/wasm2c_sandbox_wrapper.c")
@@ -138,22 +138,22 @@ add_custom_command(OUTPUT "${GLUE_LIB_C}"
                    DEPENDS ${C_SOURCE_FILES}
                    WORKING_DIRECTORY "${mod_wasm2c_SOURCE_DIR}"
                    COMMAND ${CMAKE_COMMAND}
-                           -DCMAKE_BUILD_TYPE=Release
+                           -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
                            -S
                            .
                            -B
-                           ./build_release
+                           ./build
                    COMMAND VERBOSE=1
                            ${CMAKE_COMMAND}
                            --build
-                           ./build_release
+                           ./build
                            --parallel
                            --target
                            wasm2c
                    COMMAND VERBOSE=1
                            ${CMAKE_COMMAND}
                            --build
-                           ./build_release
+                           ./build
                            --parallel
                            --target
                            wasm-rt-impl

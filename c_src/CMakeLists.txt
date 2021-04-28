@@ -58,7 +58,7 @@ add_custom_command(OUTPUT ${GLUE_LIB_PATH}
                    DEPENDS glue_lib_wasm2c.wasm
                    COMMAND ${WASM2C_COMPILER_DIR}/wasm2c
                            -o ${GLUE_LIB_PATH}
-                           -n currlib
+                           -n "currlib_"
                            glue_lib_wasm2c.wasm
                    COMMENT "Compiling wasm file to C with checks")
 

@@ -369,7 +369,7 @@ private:
   }
 
 protected:
-  inline void impl_create_sandbox(const char* wasm2c_module_path)
+  inline void impl_create_sandbox(const char* wasm2c_module_path, const char* wasm_module_name = "currlib_")
   {
     wasm2c_ensure_linked();
     detail::dynamic_check(sandbox == nullptr, "Sandbox already initialized");
@@ -377,8 +377,10 @@ protected:
     library = dlopen(wasm2c_module_path, RTLD_LAZY);
     detail::dynamic_check(library != nullptr, "Could not load wasm2c dynamic library");
 
-    auto get_info_func = reinterpret_cast<wasm2c_sandbox_funcs_t(*)()>(dlsym(library, "get_currlib_wasm2c_sandbox_info"));
-    detail::dynamic_check(get_info_func != nullptr, "wasm2c could not find get_currlib_wasm2c_sandbox_info");
+    std::string info_func_name = wasm_module_name;
+    info_func_name += "get_wasm2c_sandbox_info";
+    auto get_info_func = reinterpret_cast<wasm2c_sandbox_funcs_t(*)()>(dlsym(library, info_func_name.c_str()));
+    detail::dynamic_check(get_info_func != nullptr, "wasm2c could not find <MODULE_NAME>get_wasm2c_sandbox_info");
     sandbox_info = get_info_func();
 
     sandbox = sandbox_info.create_wasm2c_sandbox();
