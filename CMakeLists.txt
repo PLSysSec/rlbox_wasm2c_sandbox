@@ -98,13 +98,13 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
   FetchContent_Declare(
     wasiclang
     URL
-      https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-11/wasi-sdk-11.0-macos.tar.gz
+      https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-12/wasi-sdk-12.0-macos.tar.gz
     )
 else()
   FetchContent_Declare(
     wasiclang
     URL
-      https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-11/wasi-sdk-11.0-linux.tar.gz
+      https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-12/wasi-sdk-12.0-linux.tar.gz
     )
 endif()
 FetchContent_GetProperties(wasiclang)
@@ -126,8 +126,8 @@ endif()
 
 # wasm2c ###################
 
-set(WASM2C_RUNTIME_DIR "${mod_wasm2c_SOURCE_DIR}/build/")
-set(WASM2C_COMPILER_DIR "${mod_wasm2c_SOURCE_DIR}/build/")
+set(WASM2C_RUNTIME_DIR "${mod_wasm2c_SOURCE_DIR}/build_release/")
+set(WASM2C_COMPILER_DIR "${mod_wasm2c_SOURCE_DIR}/build_release/")
 set(WASM2C_COMPILER_PATH "${WASM2C_COMPILER_DIR}/wasm2c")
 
 set(C_SOURCE_FILES "${CMAKE_SOURCE_DIR}/c_src/wasm2c_sandbox_wrapper.c")
@@ -142,18 +142,18 @@ add_custom_command(OUTPUT "${GLUE_LIB_C}"
                            -S
                            .
                            -B
-                           ./build
+                           ./build_release
                    COMMAND VERBOSE=1
                            ${CMAKE_COMMAND}
                            --build
-                           ./build
+                           ./build_release
                            --parallel
                            --target
                            wasm2c
                    COMMAND VERBOSE=1
                            ${CMAKE_COMMAND}
                            --build
-                           ./build
+                           ./build_release
                            --parallel
                            --target
                            wasm-rt-impl
