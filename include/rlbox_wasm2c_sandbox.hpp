@@ -334,9 +334,13 @@ private:
     // Class return types as promoted to args
     constexpr bool promoted = std::is_class_v<T_Ret>;
 
+    // If return type is void, then there is no return type
+    // But it is fine if we add it anyway as it as at the end of the array
+    // and we pass in counts to lookup_wasm2c_func_index that would result in this
+    // element not being accessed
     wasm_rt_type_t ret_param_types[] = {
-      wasm2c_detail::convert_type_to_wasm_type<T_Ret>::wasm2c_type,
-      wasm2c_detail::convert_type_to_wasm_type<T_Args>::wasm2c_type...
+      wasm2c_detail::convert_type_to_wasm_type<T_Args>::wasm2c_type...,
+      wasm2c_detail::convert_type_to_wasm_type<T_Ret>::wasm2c_type
     };
 
     uint32_t param_count = 0;
@@ -347,7 +351,7 @@ private:
       ret_count = 0;
     } else {
       param_count = sizeof...(T_Args);
-      ret_count = 1;
+      ret_count = std::is_void_v<T_Ret>? 0 : 1;
     }
 
     auto ret = sandbox_info.lookup_wasm2c_func_index(sandbox, param_count, ret_count, ret_param_types);
