@@ -94,7 +94,13 @@ endif()
 add_subdirectory("${catch2_SOURCE_DIR}")
 list(APPEND CMAKE_MODULE_PATH "${catch2_SOURCE_DIR}/contrib")
 
-if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+if (WIN32)
+  FetchContent_Declare(
+    wasiclang
+    URL
+      https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-12/wasi-sdk-12.0-mingw.tar.gz
+    )
+elseif (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
   FetchContent_Declare(
     wasiclang
     URL
@@ -121,14 +127,19 @@ if(NOT mod_wasm2c_POPULATED)
   FetchContent_Populate(mod_wasm2c)
 endif()
 
-
 # set (mod_wasm2c_SOURCE_DIR "/home/shr/Code/LibrarySandboxing/wasm2c_sandbox_compiler/")
+# set (mod_wasm2c_SOURCE_DIR "D:/Code/wasm2c_sandbox_compiler/")
 
 # wasm2c ###################
 
+set(WASM2C_RUNTIME_SOURCE_DIR "${mod_wasm2c_SOURCE_DIR}/wasm2c/")
 set(WASM2C_RUNTIME_DIR "${mod_wasm2c_SOURCE_DIR}/build/")
-set(WASM2C_COMPILER_DIR "${mod_wasm2c_SOURCE_DIR}/build/")
-set(WASM2C_COMPILER_PATH "${WASM2C_COMPILER_DIR}/wasm2c")
+if (WIN32)
+  set(WASM2C_COMPILER_DIR "${mod_wasm2c_SOURCE_DIR}/bin/")
+else()
+  set(WASM2C_COMPILER_DIR "${mod_wasm2c_SOURCE_DIR}/build/")
+endif()
+
 
 set(C_SOURCE_FILES "${CMAKE_SOURCE_DIR}/c_src/wasm2c_sandbox_wrapper.c")
 set(GLUE_LIB_WASM "${CMAKE_BINARY_DIR}/wasm/glue_lib_wasm2c.wasm")
@@ -143,34 +154,29 @@ add_custom_command(OUTPUT "${GLUE_LIB_C}"
                            .
                            -B
                            ./build
-                   COMMAND VERBOSE=1
-                           ${CMAKE_COMMAND}
+                   COMMAND ${CMAKE_COMMAND}
                            --build
                            ./build
                            --parallel
                            --target
                            wasm2c
-                   COMMAND VERBOSE=1
-                           ${CMAKE_COMMAND}
+                   COMMAND ${CMAKE_COMMAND}
                            --build
                            ./build
                            --parallel
                            --target
                            wasm-rt-impl
-                   COMMAND rlbox_SOURCE_DIR=${rlbox_SOURCE_DIR}
-                           wasiclang_SOURCE_DIR=${wasiclang_SOURCE_DIR}
-                           WASM2C_COMPILER_DIR=${WASM2C_COMPILER_DIR}
-                           ${CMAKE_COMMAND}
-                           -S
-                           ${CMAKE_SOURCE_DIR}/c_src
-                           -B
-                           ${CMAKE_BINARY_DIR}/wasm
-                   COMMAND VERBOSE=1
-                           ${CMAKE_COMMAND}
-                           --build
-                           ${CMAKE_BINARY_DIR}/wasm
-                           --target
-                           all
+                    COMMAND ${wasiclang_SOURCE_DIR}/bin/clang
+                            --sysroot ${wasiclang_SOURCE_DIR}/share/wasi-sysroot/
+                            -O3
+                            -Wl,--export-all -Wl,--no-entry -Wl,--growable-table
+                            -o ${GLUE_LIB_WASM}
+                            ${CMAKE_SOURCE_DIR}/c_src/wasm2c_sandbox_wrapper.c
+                            ${rlbox_SOURCE_DIR}/code/tests/rlbox_glue/lib/libtest.c
+                    COMMAND ${WASM2C_COMPILER_DIR}/wasm2c
+                            -o ${GLUE_LIB_C}
+                            -n "currlib_"
+                            ${GLUE_LIB_WASM}
                    COMMENT "Building wasm2c compiler, runtime and wasm sandboxed library")
 
 # Tests ###################
@@ -189,7 +195,13 @@ if(DEV)
   endif()
 endif()
 
-add_library(glue_lib_so SHARED ${GLUE_LIB_C})
+file(GLOB_RECURSE
+     WASM2C_RUNTIME_CODE
+     ${WASM2C_RUNTIME_SOURCE_DIR}/*.c)
+list(FILTER WASM2C_RUNTIME_CODE EXCLUDE REGEX "${WASM2C_RUNTIME_SOURCE_DIR}/examples/.*" )
+
+message(WARNING "FILES: ${WASM2C_RUNTIME_SOURCE_DIR}/*.c ${WASM2C_RUNTIME_CODE}")
+add_library(glue_lib_so SHARED ${GLUE_LIB_C} ${WASM2C_RUNTIME_CODE})
 target_include_directories(glue_lib_so PRIVATE ${mod_wasm2c_SOURCE_DIR}/wasm2c)
 
 include(CTest)
@@ -210,7 +222,6 @@ target_include_directories(test_rlbox_glue PUBLIC ${CMAKE_SOURCE_DIR}/include
                                            )
 target_link_directories(test_rlbox_glue PUBLIC ${WASM2C_RUNTIME_DIR})
 target_link_libraries(test_rlbox_glue Catch2::Catch2
-                                      wasm-rt-impl
                                       ${CMAKE_THREAD_LIBS_INIT}
                                       ${CMAKE_DL_LIBS}
 )
@@ -236,7 +247,6 @@ target_include_directories(test_rlbox_glue_embed PUBLIC ${CMAKE_SOURCE_DIR}/incl
                                            )
 target_link_directories(test_rlbox_glue_embed PUBLIC ${WASM2C_RUNTIME_DIR})
 target_link_libraries(test_rlbox_glue_embed Catch2::Catch2
-                                      wasm-rt-impl
                                       ${CMAKE_THREAD_LIBS_INIT}
                                       ${CMAKE_DL_LIBS}
 )

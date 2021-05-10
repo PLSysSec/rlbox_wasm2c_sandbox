@@ -17,7 +17,13 @@
 #include <utility>
 #include <vector>
 
+#if defined(_WIN32)
+// Ensure the min/max macro in the header doesn't collide with functions in std::
+#define NOMINMAX
+#include <Windows.h>
+#else
 #include <dlfcn.h>
+#endif
 
 #define RLBOX_WASM2C_UNUSED(...) (void)__VA_ARGS__
 
@@ -372,18 +378,49 @@ private:
     }
   }
 
+  inline void* symbol_lookup(std::string prefixed_name) {
+    #if defined(_WIN32)
+      void* ret = GetProcAddress((HMODULE) library, prefixed_name.c_str());
+    #else
+      void* ret = dlsym(library, prefixed_name.c_str());
+    #endif
+    return ret;
+  }
+
 protected:
   inline void impl_create_sandbox(const char* wasm2c_module_path, const char* wasm_module_name = "currlib_")
   {
-    wasm2c_ensure_linked();
     detail::dynamic_check(sandbox == nullptr, "Sandbox already initialized");
 
+    #if defined(_WIN32)
+    library = LoadLibraryA(wasm2c_module_path);
+    #else
     library = dlopen(wasm2c_module_path, RTLD_LAZY);
-    detail::dynamic_check(library != nullptr, "Could not load wasm2c dynamic library");
+    #endif
+
+    if (!library) {
+      std::string error_msg = "Could not load wasm2c dynamic library: ";
+      #if defined(_WIN32)
+        DWORD errorMessageID  = GetLastError();
+        if (errorMessageID != 0) {
+          LPSTR messageBuffer = nullptr;
+          //The api creates the buffer that holds the message
+          size_t size = FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+                                      NULL, errorMessageID, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPSTR)&messageBuffer, 0, NULL);
+          //Copy the error message into a std::string.
+          std::string message(messageBuffer, size);
+          error_msg += message;
+          LocalFree(messageBuffer);
+        }
+      #else
+        error_msg += dlerror();
+      #endif
+      detail::dynamic_check(false, error_msg.c_str());
+    }
 
     std::string info_func_name = wasm_module_name;
     info_func_name += "get_wasm2c_sandbox_info";
-    auto get_info_func = reinterpret_cast<wasm2c_sandbox_funcs_t(*)()>(dlsym(library, info_func_name.c_str()));
+    auto get_info_func = reinterpret_cast<wasm2c_sandbox_funcs_t(*)()>(symbol_lookup(info_func_name));
     detail::dynamic_check(get_info_func != nullptr, "wasm2c could not find <MODULE_NAME>get_wasm2c_sandbox_info");
     sandbox_info = get_info_func();
 
@@ -418,6 +455,13 @@ protected:
     }
     sandbox_info.destroy_wasm2c_sandbox(sandbox);
     sandbox = nullptr;
+
+    #if defined(_WIN32)
+      FreeLibrary((HMODULE) library);
+    #else
+      dlclose(library);
+    #endif
+    library = nullptr;
   }
 
   template<typename T>
@@ -537,7 +581,8 @@ protected:
   {
     std::string prefixed_name = "w2c_";
     prefixed_name += func_name;
-    return dlsym(library, prefixed_name.c_str());
+    void* ret = symbol_lookup(prefixed_name);
+    return ret;
   }
 
   template<typename T, typename T_Converted, typename... T_Args>
