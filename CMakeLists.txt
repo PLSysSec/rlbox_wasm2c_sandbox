@@ -134,12 +134,7 @@ endif()
 
 set(WASM2C_RUNTIME_SOURCE_DIR "${mod_wasm2c_SOURCE_DIR}/wasm2c/")
 set(WASM2C_RUNTIME_DIR "${mod_wasm2c_SOURCE_DIR}/build/")
-if (WIN32)
-  set(WASM2C_COMPILER_DIR "${mod_wasm2c_SOURCE_DIR}/bin/")
-else()
-  set(WASM2C_COMPILER_DIR "${mod_wasm2c_SOURCE_DIR}/build/")
-endif()
-
+set(WASM2C_COMPILER_DIR "${mod_wasm2c_SOURCE_DIR}/bin/")
 
 set(C_SOURCE_FILES "${CMAKE_SOURCE_DIR}/c_src/wasm2c_sandbox_wrapper.c")
 set(GLUE_LIB_WASM_DIR "${CMAKE_BINARY_DIR}/wasm/")
@@ -159,14 +154,6 @@ add_custom_command(OUTPUT "${GLUE_LIB_C}"
                            --build
                            ./build
                            --parallel
-                           --target
-                           wasm2c
-                   COMMAND ${CMAKE_COMMAND}
-                           --build
-                           ./build
-                           --parallel
-                           --target
-                           wasm-rt-impl
                     COMMAND ${CMAKE_COMMAND} -E make_directory ${GLUE_LIB_WASM_DIR}
                     COMMAND ${wasiclang_SOURCE_DIR}/bin/clang
                             --sysroot ${wasiclang_SOURCE_DIR}/share/wasi-sysroot/
@@ -222,7 +209,6 @@ target_include_directories(test_rlbox_glue PUBLIC ${CMAKE_SOURCE_DIR}/include
                                            PUBLIC ${rlbox_SOURCE_DIR}/wasm
                                            PUBLIC ${mod_wasm2c_SOURCE_DIR}/wasm2c
                                            )
-target_link_directories(test_rlbox_glue PUBLIC ${WASM2C_RUNTIME_DIR})
 target_link_libraries(test_rlbox_glue Catch2::Catch2
                                       ${CMAKE_THREAD_LIBS_INIT}
                                       ${CMAKE_DL_LIBS}
@@ -247,7 +233,6 @@ target_include_directories(test_rlbox_glue_embed PUBLIC ${CMAKE_SOURCE_DIR}/incl
                                            PUBLIC ${rlbox_SOURCE_DIR}/wasm
                                            PUBLIC ${mod_wasm2c_SOURCE_DIR}/wasm2c
                                            )
-target_link_directories(test_rlbox_glue_embed PUBLIC ${WASM2C_RUNTIME_DIR})
 target_link_libraries(test_rlbox_glue_embed Catch2::Catch2
                                       ${CMAKE_THREAD_LIBS_INIT}
                                       ${CMAKE_DL_LIBS}
