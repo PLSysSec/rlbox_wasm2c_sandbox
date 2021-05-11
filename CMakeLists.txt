@@ -142,8 +142,9 @@ endif()
 
 
 set(C_SOURCE_FILES "${CMAKE_SOURCE_DIR}/c_src/wasm2c_sandbox_wrapper.c")
-set(GLUE_LIB_WASM "${CMAKE_BINARY_DIR}/wasm/glue_lib_wasm2c.wasm")
-set(GLUE_LIB_C "${CMAKE_BINARY_DIR}/wasm/glue_lib_wasm2c.c")
+set(GLUE_LIB_WASM_DIR "${CMAKE_BINARY_DIR}/wasm/")
+set(GLUE_LIB_WASM "${GLUE_LIB_WASM_DIR}/glue_lib_wasm2c.wasm")
+set(GLUE_LIB_C "${GLUE_LIB_WASM_DIR}/glue_lib_wasm2c.c")
 
 add_custom_command(OUTPUT "${GLUE_LIB_C}"
                    DEPENDS ${C_SOURCE_FILES}
@@ -166,6 +167,7 @@ add_custom_command(OUTPUT "${GLUE_LIB_C}"
                            --parallel
                            --target
                            wasm-rt-impl
+                    COMMAND ${CMAKE_COMMAND} -E make_directory ${GLUE_LIB_WASM_DIR}
                     COMMAND ${wasiclang_SOURCE_DIR}/bin/clang
                             --sysroot ${wasiclang_SOURCE_DIR}/share/wasi-sysroot/
                             -O3
