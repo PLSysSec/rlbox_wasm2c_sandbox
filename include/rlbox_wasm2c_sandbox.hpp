@@ -238,7 +238,7 @@ rlbox_wasm2c_sandbox_thread_data* get_rlbox_wasm2c_sandbox_thread_data();
 class rlbox_wasm2c_sandbox
 {
 public:
-  using T_LongLongType = int32_t;
+  using T_LongLongType = int64_t;
   using T_LongType = int32_t;
   using T_IntType = int32_t;
   using T_PointerType = uint32_t;
