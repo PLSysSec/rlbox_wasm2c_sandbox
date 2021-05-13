@@ -20,7 +20,7 @@ For instance, to edit an existing `make` based build system, you can run the com
 - Assuming the above command produced the wasm module `libFoo.wasm`, compile this to an C file using the modified wasm2c compiler as shown below.
 
    ```bash
-   build/wasm2c -o libWasmFoo.c libFoo.wasm
+   build/_deps/mod_wasm2c-src/bin/wasm2c -o libWasmFoo.c libFoo.wasm
    ```
 
 - Compile this and wasm2c runtime to a shared library using your platform c compiler. On linux this may done as shown below. You can adjust this command as needed for Mac/Windows.
