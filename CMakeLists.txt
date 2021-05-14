@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.13)
+cmake_policy(VERSION 3.16)
 
 project(rlbox_wasm2c
         VERSION 0.1
@@ -189,7 +190,6 @@ file(GLOB_RECURSE
      ${WASM2C_RUNTIME_SOURCE_DIR}/*.c)
 list(FILTER WASM2C_RUNTIME_CODE EXCLUDE REGEX "${WASM2C_RUNTIME_SOURCE_DIR}/examples/.*" )
 
-message(WARNING "FILES: ${WASM2C_RUNTIME_SOURCE_DIR}/*.c ${WASM2C_RUNTIME_CODE}")
 add_library(glue_lib_so SHARED ${GLUE_LIB_C} ${WASM2C_RUNTIME_CODE})
 target_include_directories(glue_lib_so PRIVATE ${mod_wasm2c_SOURCE_DIR}/wasm2c)
 
