@@ -11,7 +11,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        compiler: clang
+        compiler: { compiler: LLVM, CC: clang, CXX: clang++ }
     runs-on: ${{ matrix.os }}
 
     steps:
