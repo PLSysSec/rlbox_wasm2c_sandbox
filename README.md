@@ -1,5 +1,7 @@
 # RLBOX Wasm2c Sandbox Integration
 
+[![Build Status](https://travis-ci.com/PLSysSec/rlbox_wasm2c_sandbox.svg?branch=master)](https://travis-ci.com/PLSysSec/rlbox_wasm2c_sandbox)
+
 Integration with RLBox sandboxing API to leverage the sandboxing in WASM modules compiled with a modified wasm2c compiler.
 
 For details about the RLBox sandboxing APIs, see [here](https://github.com/PLSysSec/rlbox_api_cpp17).
