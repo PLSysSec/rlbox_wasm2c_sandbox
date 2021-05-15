@@ -1,6 +1,6 @@
-# RLBOX Wasm2c Sandbox Integration
+[![CMake](https://github.com/PLSysSec/rlbox_wasm2c_sandbox/actions/workflows/cmake.yml/badge.svg)](https://github.com/PLSysSec/rlbox_wasm2c_sandbox/actions/workflows/cmake.yml)
 
-[![Build Status](https://travis-ci.com/PLSysSec/rlbox_wasm2c_sandbox.svg?branch=master)](https://travis-ci.com/PLSysSec/rlbox_wasm2c_sandbox)
+# RLBox Wasm2c Sandbox Integration
 
 Integration with RLBox sandboxing API to leverage the sandboxing in WASM modules compiled with a modified wasm2c compiler.
 
