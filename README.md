@@ -41,9 +41,9 @@ This wasm2c/wasm integration with RLBox depends on 3 external tools/libraries th
 
 In the below steps, you can either use the automatically pulled in versions as described below, or download the tools yourself.
 
-To sandbox a library of your choice and use the sandboxed library in an application follow the readme [here](https://github.com/PLSysSec/rlbox_wasm2c_sandbox/LibrarySandbox.md)
+To sandbox a library of your choice and use the sandboxed library in an application follow the readme [here](https://github.com/PLSysSec/rlbox_wasm2c_sandbox/blob/master/LibrarySandbox.md)
 
-To sandbox a full program of your choice (a program is code with main function) follow the readme [here](https://github.com/PLSysSec/rlbox_wasm2c_sandbox/AppSandbox.md)
+To sandbox a full program of your choice (a program is code with main function) follow the readme [here](https://github.com/PLSysSec/rlbox_wasm2c_sandbox/blob/master/AppSandbox.md)
 
 ## Contributing Code
 
