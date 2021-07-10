@@ -388,7 +388,7 @@ private:
   }
 
 protected:
-  inline void impl_create_sandbox(const char* wasm2c_module_path, const char* wasm_module_name = "currlib_")
+  inline void impl_create_sandbox(const char* wasm2c_module_path, const char* wasm_module_name = "")
   {
     detail::dynamic_check(sandbox == nullptr, "Sandbox already initialized");
 
