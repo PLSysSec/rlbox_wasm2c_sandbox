@@ -191,6 +191,7 @@ list(FILTER WASM2C_RUNTIME_CODE EXCLUDE REGEX "${WASM2C_RUNTIME_SOURCE_DIR}/exam
 
 add_library(glue_lib_so SHARED ${GLUE_LIB_C} ${WASM2C_RUNTIME_CODE})
 target_include_directories(glue_lib_so PRIVATE ${mod_wasm2c_SOURCE_DIR}/wasm2c)
+target_compile_definitions(glue_lib_so PUBLIC VERBOSE_LOGGING)
 
 include(CTest)
 include(Catch)
