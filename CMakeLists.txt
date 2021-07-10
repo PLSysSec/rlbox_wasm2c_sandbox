@@ -165,7 +165,6 @@ add_custom_command(OUTPUT "${GLUE_LIB_C}"
                             ${rlbox_SOURCE_DIR}/code/tests/rlbox_glue/lib/libtest.c
                     COMMAND ${WASM2C_COMPILER_DIR}/wasm2c
                             -o ${GLUE_LIB_C}
-                            -n "currlib_"
                             ${GLUE_LIB_WASM}
                    COMMENT "Building wasm2c compiler, runtime and wasm sandboxed library")
 
