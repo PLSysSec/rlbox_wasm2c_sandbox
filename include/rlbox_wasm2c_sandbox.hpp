@@ -246,7 +246,10 @@ public:
 
 private:
   void* sandbox = nullptr;
-  wasm2c_sandbox_funcs_t sandbox_info {0};
+  wasm2c_sandbox_funcs_t sandbox_info;
+#if !defined(_MSC_VER)
+__attribute__((weak))
+#endif
   static std::once_flag wasm2c_runtime_initialized;
   wasm_rt_memory_t* sandbox_memory_info = nullptr;
   void* library = nullptr;
