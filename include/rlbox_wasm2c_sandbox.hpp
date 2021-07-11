@@ -247,6 +247,7 @@ public:
 private:
   void* sandbox = nullptr;
   wasm2c_sandbox_funcs_t sandbox_info {0};
+  static std::once_flag wasm2c_runtime_initialized;
   wasm_rt_memory_t* sandbox_memory_info = nullptr;
   void* library = nullptr;
   uintptr_t heap_base;
@@ -423,6 +424,10 @@ protected:
     auto get_info_func = reinterpret_cast<wasm2c_sandbox_funcs_t(*)()>(symbol_lookup(info_func_name));
     detail::dynamic_check(get_info_func != nullptr, "wasm2c could not find <MODULE_NAME>get_wasm2c_sandbox_info");
     sandbox_info = get_info_func();
+
+    std::call_once(wasm2c_runtime_initialized, [&](){
+      sandbox_info.wasm_rt_sys_init();
+    });
 
     sandbox = sandbox_info.create_wasm2c_sandbox();
     detail::dynamic_check(sandbox != nullptr, "Sandbox could not be created");
@@ -789,5 +794,13 @@ protected:
     return;
   }
 };
+
+// declare the static symbol with weak linkage to keep this header only
+#if defined(_MSC_VER)
+__declspec(selectany)
+#else
+__attribute__((weak))
+#endif
+std::once_flag rlbox_wasm2c_sandbox::wasm2c_runtime_initialized;
 
 } // namespace rlbox
