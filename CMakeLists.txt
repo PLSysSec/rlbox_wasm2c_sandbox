@@ -129,7 +129,7 @@ if(NOT mod_wasm2c_POPULATED)
 endif()
 
 # set (mod_wasm2c_SOURCE_DIR "/home/shr/Code/LibrarySandboxing/wasm2c_sandbox_compiler/")
-# set (mod_wasm2c_SOURCE_DIR "D:/Code/wasm2c_sandbox_compiler/")
+# set (mod_wasm2c_SOURCE_DIR "C:/Users/shr/Code/wasm2c_sandbox_compiler/")
 
 # wasm2c ###################
 
