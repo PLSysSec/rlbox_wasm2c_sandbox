@@ -131,6 +131,33 @@ endif()
 # set (mod_wasm2c_SOURCE_DIR "/home/shr/Code/LibrarySandboxing/wasm2c_sandbox_compiler/")
 # set (mod_wasm2c_SOURCE_DIR "C:/Users/shr/Code/wasm2c_sandbox_compiler/")
 
+if(DEV)
+  if(MSVC)
+    set(RLBOX_SANITIZER_COMPILE_FLAGS)
+    set(RLBOX_SANITIZER_LINK_FLAGS "")
+  else()
+    set(RLBOX_SANITIZER_COMPILE_FLAGS -fsanitize=address -fsanitize=undefined)
+    set(RLBOX_SANITIZER_LINK_FLAGS -fsanitize=address -fsanitize=undefined)
+  endif()
+else()
+  set(RLBOX_SANITIZER_COMPILE_FLAGS "")
+  set(RLBOX_SANITIZER_LINK_FLAGS "")
+endif()
+
+if(DEV)
+  set (WASM2C_BUILD_TYPE Debug)
+else()
+  if ("${DCMAKE_BUILD_TYPE}" STREQUAL "Debug")
+    set (WASM2C_BUILD_TYPE Debug)
+  elseif ("${DCMAKE_BUILD_TYPE}" STREQUAL "RelWithDebInfo")
+    set (WASM2C_BUILD_TYPE RelWithDebInfo)
+  elseif ("${DCMAKE_BUILD_TYPE}" STREQUAL "MinSizeRel")
+    set (WASM2C_BUILD_TYPE MinSizeRel)
+  else()
+    set (WASM2C_BUILD_TYPE Release)
+  endif()
+endif()
+
 # wasm2c ###################
 
 set(WASM2C_RUNTIME_SOURCE_DIR "${mod_wasm2c_SOURCE_DIR}/wasm2c/")
@@ -146,14 +173,15 @@ add_custom_command(OUTPUT "${GLUE_LIB_C}"
                    DEPENDS ${C_SOURCE_FILES}
                    WORKING_DIRECTORY "${mod_wasm2c_SOURCE_DIR}"
                    COMMAND ${CMAKE_COMMAND}
-                           -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
-                           -S
-                           .
-                           -B
-                           ./build
+                           -DCMAKE_BUILD_TYPE=${WASM2C_BUILD_TYPE}
+                           -DCMAKE_C_FLAGS="${RLBOX_SANITIZER_COMPILE_FLAGS}"
+                           -DCMAKE_CXX_FLAGS="${RLBOX_SANITIZER_COMPILE_FLAGS}"
+                           -DLINK_FLAGS="${RLBOX_SANITIZER_LINK_FLAGS}"
+                           -S  .
+                           -B ./build
                    COMMAND ${CMAKE_COMMAND}
-                           --build
-                           ./build
+                           --build ./build
+                           --config ${WASM2C_BUILD_TYPE}
                            --parallel
                     COMMAND ${CMAKE_COMMAND} -E make_directory ${GLUE_LIB_WASM_DIR}
                     COMMAND ${wasiclang_SOURCE_DIR}/bin/clang
@@ -171,17 +199,8 @@ add_custom_command(OUTPUT "${GLUE_LIB_C}"
 # Tests ###################
 
 if(DEV)
-  if(MSVC)
-    add_compile_options(/W4) # warnings
-    add_compile_options(/WX) # warnings as errors
-  else()
-    add_compile_options(-Wall -Wextra -pedantic) # warnings
-    add_compile_options(-Werror) # warnings as errors
-    add_compile_options(-fsanitize=address)
-    add_link_options(-fsanitize=address)
-    add_compile_options(-fsanitize=undefined)
-    add_link_options(-fsanitize=undefined)
-  endif()
+  add_compile_options(-Wall -Wextra -pedantic ${RLBOX_SANITIZER_COMPILE_FLAGS})
+  add_link_options(${RLBOX_SANITIZER_LINK_FLAGS})
 endif()
 
 file(GLOB_RECURSE
