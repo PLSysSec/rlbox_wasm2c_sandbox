@@ -122,7 +122,7 @@ endif()
 FetchContent_Declare(
   mod_wasm2c
   GIT_REPOSITORY https://github.com/PLSysSec/wasm2c_sandbox_compiler
-  GIT_TAG main)
+  GIT_TAG win_dbg)
 FetchContent_GetProperties(mod_wasm2c)
 if(NOT mod_wasm2c_POPULATED)
   FetchContent_Populate(mod_wasm2c)
