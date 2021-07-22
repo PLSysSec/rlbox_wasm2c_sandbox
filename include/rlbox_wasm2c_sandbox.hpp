@@ -259,6 +259,7 @@ __attribute__((weak))
   void* free_index = 0;
   size_t return_slot_size = 0;
   T_PointerType return_slot = 0;
+  T_PointerType new_unsafe_stack = 0;
 
   static const size_t MAX_CALLBACKS = 128;
   mutable RLBOX_SHARED_LOCK(callback_mutex);
@@ -392,7 +393,7 @@ __attribute__((weak))
   }
 
 protected:
-  inline void impl_create_sandbox(const char* wasm2c_module_path, const char* wasm_module_name = "")
+  inline void impl_create_sandbox(const char* wasm2c_module_path, bool use_expanded_stack = false, const char* wasm_module_name = "")
   {
     detail::dynamic_check(sandbox == nullptr, "Sandbox already initialized");
 
@@ -435,7 +436,7 @@ protected:
     sandbox = sandbox_info.create_wasm2c_sandbox();
     detail::dynamic_check(sandbox != nullptr, "Sandbox could not be created");
 
-    sandbox_memory_info = (wasm_rt_memory_t*) sandbox_info.lookup_wasm2c_nonfunc_export(sandbox, "memory");
+    sandbox_memory_info = (wasm_rt_memory_t*) sandbox_info.lookup_wasm2c_nonfunc_export(sandbox, "w2c_memory");
     detail::dynamic_check(sandbox_memory_info != nullptr, "Could not get wasm2c sandbox memory info");
 
     heap_base = reinterpret_cast<uintptr_t>(impl_get_memory_location());
@@ -454,12 +455,34 @@ protected:
     exec_env = sandbox;
     malloc_index = impl_lookup_symbol("malloc");
     free_index = impl_lookup_symbol("free");
+
+    if (use_expanded_stack) {
+      auto stack_location_1 = (uint32_t*) sandbox_info.lookup_wasm2c_nonfunc_export(sandbox, "w2c___stack_pointer");
+      auto stack_location_2 = (uint32_t*) sandbox_info.lookup_wasm2c_nonfunc_export(sandbox, "w2c_g0");
+
+      detail::dynamic_check(stack_location_1 != nullptr || stack_location_2 != nullptr,
+        "Could not find the location of the unsafe stack in Wasm module");
+
+      auto chosen_stack_location = stack_location_1? stack_location_1 : stack_location_2;
+      const uint32_t stack_size = 1 * 1024 * 1024;
+      new_unsafe_stack = impl_malloc_in_sandbox(stack_size);
+      detail::dynamic_check(new_unsafe_stack != 0, "Unable to allocate a new unsafe stack in Wasm module");
+      *chosen_stack_location = new_unsafe_stack + (stack_size - 1);
+    } else {
+      new_unsafe_stack = 0;
+    }
   }
 
   inline void impl_destroy_sandbox()
   {
     if (return_slot_size) {
       impl_free_in_sandbox(return_slot);
+      return_slot_size = 0;
+      return_slot = 0;
+    }
+    if (new_unsafe_stack) {
+      impl_free_in_sandbox(new_unsafe_stack);
+      new_unsafe_stack = 0;
     }
     sandbox_info.destroy_wasm2c_sandbox(sandbox);
     sandbox = nullptr;
