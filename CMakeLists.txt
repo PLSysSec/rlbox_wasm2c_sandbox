@@ -167,9 +167,10 @@ set(WASM2C_COMPILER_DIR "${mod_wasm2c_SOURCE_DIR}/bin/")
 set(C_SOURCE_FILES "${CMAKE_SOURCE_DIR}/c_src/wasm2c_sandbox_wrapper.c")
 set(GLUE_LIB_WASM_DIR "${CMAKE_BINARY_DIR}/wasm/")
 set(GLUE_LIB_WASM "${GLUE_LIB_WASM_DIR}/glue_lib_wasm2c.wasm")
+set(GLUE_LIB_H "${GLUE_LIB_WASM_DIR}/glue_lib_wasm2c.h")
 set(GLUE_LIB_C "${GLUE_LIB_WASM_DIR}/glue_lib_wasm2c.c")
 
-add_custom_command(OUTPUT "${GLUE_LIB_C}"
+add_custom_command(OUTPUT "${GLUE_LIB_H}" "${GLUE_LIB_C}" "${GLUE_LIB_WASM}"
                    DEPENDS ${C_SOURCE_FILES}
                    WORKING_DIRECTORY "${mod_wasm2c_SOURCE_DIR}"
                    COMMAND ${CMAKE_COMMAND}
@@ -187,7 +188,7 @@ add_custom_command(OUTPUT "${GLUE_LIB_C}"
                     COMMAND ${wasiclang_SOURCE_DIR}/bin/clang
                             --sysroot ${wasiclang_SOURCE_DIR}/share/wasi-sysroot/
                             -O3
-                            -Wl,--export-all -Wl,--no-entry -Wl,--growable-table
+                            -Wl,--export-all -Wl,--no-entry -Wl,--growable-table -Wl,--stack-first -z stack-size=1048576
                             -o ${GLUE_LIB_WASM}
                             ${CMAKE_SOURCE_DIR}/c_src/wasm2c_sandbox_wrapper.c
                             ${rlbox_SOURCE_DIR}/code/tests/rlbox_glue/lib/libtest.c
