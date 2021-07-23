@@ -167,10 +167,9 @@ set(WASM2C_COMPILER_DIR "${mod_wasm2c_SOURCE_DIR}/bin/")
 set(C_SOURCE_FILES "${CMAKE_SOURCE_DIR}/c_src/wasm2c_sandbox_wrapper.c")
 set(GLUE_LIB_WASM_DIR "${CMAKE_BINARY_DIR}/wasm/")
 set(GLUE_LIB_WASM "${GLUE_LIB_WASM_DIR}/glue_lib_wasm2c.wasm")
-set(GLUE_LIB_H "${GLUE_LIB_WASM_DIR}/glue_lib_wasm2c.h")
 set(GLUE_LIB_C "${GLUE_LIB_WASM_DIR}/glue_lib_wasm2c.c")
 
-add_custom_command(OUTPUT "${GLUE_LIB_H}" "${GLUE_LIB_C}" "${GLUE_LIB_WASM}"
+add_custom_command(OUTPUT "${GLUE_LIB_C}"
                    DEPENDS ${C_SOURCE_FILES}
                    WORKING_DIRECTORY "${mod_wasm2c_SOURCE_DIR}"
                    COMMAND ${CMAKE_COMMAND}
@@ -188,7 +187,7 @@ add_custom_command(OUTPUT "${GLUE_LIB_H}" "${GLUE_LIB_C}" "${GLUE_LIB_WASM}"
                     COMMAND ${wasiclang_SOURCE_DIR}/bin/clang
                             --sysroot ${wasiclang_SOURCE_DIR}/share/wasi-sysroot/
                             -O3
-                            -Wl,--export-all -Wl,--no-entry -Wl,--growable-table -Wl,--stack-first
+                            -Wl,--export-all -Wl,--no-entry -Wl,--growable-table
                             -o ${GLUE_LIB_WASM}
                             ${CMAKE_SOURCE_DIR}/c_src/wasm2c_sandbox_wrapper.c
                             ${rlbox_SOURCE_DIR}/code/tests/rlbox_glue/lib/libtest.c
@@ -275,30 +274,6 @@ catch_discover_tests(test_rlbox_glue_embed)
 
 ####
 
-add_executable(test_rlbox_glue_largestack test/test_wasm2c_sandbox_glue_main.cpp
-                                     test/test_wasm2c_sandbox_glue_largestack.cpp)
-target_include_directories(test_rlbox_glue_largestack PUBLIC ${CMAKE_SOURCE_DIR}/include
-                                           PUBLIC ${rlbox_SOURCE_DIR}/code/include
-                                           PUBLIC ${rlbox_SOURCE_DIR}/code/tests/rlbox_glue
-                                           PUBLIC ${rlbox_SOURCE_DIR}/code/tests/rlbox_glue/lib
-                                           PUBLIC ${rlbox_SOURCE_DIR}/wasm
-                                           PUBLIC ${mod_wasm2c_SOURCE_DIR}/wasm2c
-                                           )
-target_link_libraries(test_rlbox_glue_largestack Catch2::Catch2
-                                      ${CMAKE_THREAD_LIBS_INIT}
-                                      ${CMAKE_DL_LIBS}
-)
-
-target_compile_definitions(test_rlbox_glue_largestack PUBLIC GLUE_LIB_WASM2C_PATH="$<TARGET_FILE:glue_lib_so>")
-add_dependencies(test_rlbox_glue_largestack glue_lib_so)
-
-if(UNIX AND NOT (${CMAKE_SYSTEM_NAME} MATCHES "Darwin"))
-  target_link_libraries(test_rlbox_glue_largestack rt)
-endif()
-catch_discover_tests(test_rlbox_glue_largestack)
-
-####
-
 add_executable(test_rlbox_glue_shadow_asan test/test_wasm2c_sandbox_glue_main.cpp
                                            test/test_wasm2c_sandbox_glue.cpp)
 target_include_directories(test_rlbox_glue_shadow_asan PUBLIC ${CMAKE_SOURCE_DIR}/include
@@ -324,4 +299,4 @@ catch_discover_tests(test_rlbox_glue_shadow_asan)
 # Shortcuts ###################
 
 add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} -V)
-add_dependencies(check test_rlbox_glue test_rlbox_glue_embed test_rlbox_glue_largestack test_rlbox_glue_shadow_asan glue_lib_so glue_lib_so_shadow_asan)
+add_dependencies(check test_rlbox_glue test_rlbox_glue_embed test_rlbox_glue_shadow_asan glue_lib_so glue_lib_so_shadow_asan)
