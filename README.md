@@ -6,7 +6,7 @@ Integration with RLBox sandboxing API to leverage the sandboxing in WASM modules
 
 For details about the RLBox sandboxing APIs, see [here](https://github.com/PLSysSec/rlbox_api_cpp17).
 
-This code has been tested on 64-bit versions of Ubuntu, Mac OSX and Windows.
+This code has been tested on 64-bit versions of Ubuntu, Mac OSX and Windows and 32-bit versions of Ubuntu (other platforms would likely work out of the box too).
 
 ## Reporting security bugs
 
