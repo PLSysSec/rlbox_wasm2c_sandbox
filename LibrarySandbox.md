@@ -13,7 +13,7 @@ For instance, to edit an existing `make` based build system, you can run the com
    CFLAGS="--sysroot build/_deps/wasiclang-src/opt/wasi-sdk/share/wasi-sysroot/"  \
    LD=build/_deps/wasiclang-src/opt/wasi-sdk/bin/wasm-ld                          \
    LDLIBS=wasm2c_sandbox_wrapper.o                                                \
-   LDFLAGS=-Wl,--export-all -Wl,--no-entry -Wl,--growable-table                   \
+   LDFLAGS="-Wl,--export-all -Wl,--no-entry -Wl,--growable-table"                   \
    make
    ```
 
