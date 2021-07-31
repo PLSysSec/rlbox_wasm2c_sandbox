@@ -397,7 +397,7 @@ protected:
     detail::dynamic_check(sandbox == nullptr, "Sandbox already initialized");
 
     #if defined(_WIN32)
-    library = LoadLibraryA(wasm2c_module_path);
+    library = (void*) LoadLibraryA(wasm2c_module_path);
     #else
     library = dlopen(wasm2c_module_path, RTLD_LAZY);
     #endif
@@ -596,7 +596,7 @@ protected:
 
   inline size_t impl_get_total_memory() { return sandbox_memory_info->size; }
 
-  inline void* impl_get_memory_location()
+  inline void* impl_get_memory_location() const
   {
     return sandbox_memory_info->data;
   }
@@ -711,8 +711,10 @@ protected:
 
   inline T_PointerType impl_malloc_in_sandbox(size_t size)
   {
-    detail::dynamic_check(size <= std::numeric_limits<uint32_t>::max(),
-                          "Attempting to malloc more than the heap size");
+    if constexpr(sizeof(size) > sizeof(uint32_t)) {
+      detail::dynamic_check(size <= std::numeric_limits<uint32_t>::max(),
+                            "Attempting to malloc more than the heap size");
+    }
     using T_Func = void*(size_t);
     using T_Converted = T_PointerType(uint32_t);
     T_PointerType ret = impl_invoke_with_func_ptr<T_Func, T_Converted>(
