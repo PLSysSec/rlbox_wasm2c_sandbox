@@ -212,8 +212,7 @@ set(WASM2C_RUNTIME_CODE ${WASM2C_RUNTIME_CODE_C} ${WASM2C_RUNTIME_SOURCE_DIR}/wa
 list(FILTER WASM2C_RUNTIME_CODE EXCLUDE REGEX "${WASM2C_RUNTIME_SOURCE_DIR}/examples/.*" )
 
 add_library(glue_lib_so SHARED ${GLUE_LIB_C} ${WASM2C_RUNTIME_CODE})
-target_include_directories(glue_lib_so PRIVATE ${mod_wasm2c_SOURCE_DIR}/wasm2c)
-target_include_directories(glue_lib_so PRIVATE ../bindings)
+target_include_directories(glue_lib_so PRIVATE ${mod_wasm2c_SOURCE_DIR}/wasm2c ${CMAKE_SOURCE_DIR}/../bindings)
 
 add_library(glue_lib_so_shadow_asan SHARED ${GLUE_LIB_C} ${WASM2C_RUNTIME_CODE})
 target_include_directories(glue_lib_so_shadow_asan PRIVATE ${mod_wasm2c_SOURCE_DIR}/wasm2c)
@@ -237,6 +236,7 @@ target_include_directories(test_rlbox_glue PUBLIC ${CMAKE_SOURCE_DIR}/include
                                            PUBLIC ${rlbox_SOURCE_DIR}/wasm
                                            PUBLIC ${mod_wasm2c_SOURCE_DIR}/wasm2c
                                            )
+
 target_link_libraries(test_rlbox_glue Catch2::Catch2
                                       ${CMAKE_THREAD_LIBS_INIT}
                                       ${CMAKE_DL_LIBS}
