@@ -503,7 +503,7 @@ protected:
 
         auto func_type_idx = get_wasm2c_func_index(static_cast<T>(nullptr));
         slot_number =
-          sandbox_info.add_wasm2c_callback(sandbox, func_type_idx, const_cast<void*>(p));
+          sandbox_info.add_wasm2c_callback(sandbox, func_type_idx, const_cast<void*>(p), WASM_RT_INTERNAL_FUNCTION);
         internal_callbacks[p] = slot_number;
         slot_assignments[slot_number] = p;
       }
@@ -768,7 +768,7 @@ protected:
 
     auto func_type_idx = get_wasm2c_func_index<T_Ret, T_Args...>();
     uint32_t slot_number =
-      sandbox_info.add_wasm2c_callback(sandbox, func_type_idx, chosen_interceptor);
+      sandbox_info.add_wasm2c_callback(sandbox, func_type_idx, chosen_interceptor, WASM_RT_EXTERNAL_FUNCTION);
 
     callback_unique_keys[found_loc] = key;
     callbacks[found_loc] = callback;

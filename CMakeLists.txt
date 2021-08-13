@@ -254,12 +254,12 @@ catch_discover_tests(test_rlbox_glue)
 add_executable(test_rlbox_glue_embed test/test_wasm2c_sandbox_glue_main.cpp
                                      test/test_wasm2c_sandbox_glue_embedder_vars.cpp)
 target_include_directories(test_rlbox_glue_embed PUBLIC ${CMAKE_SOURCE_DIR}/include
-                                           PUBLIC ${rlbox_SOURCE_DIR}/code/include
-                                           PUBLIC ${rlbox_SOURCE_DIR}/code/tests/rlbox_glue
-                                           PUBLIC ${rlbox_SOURCE_DIR}/code/tests/rlbox_glue/lib
-                                           PUBLIC ${rlbox_SOURCE_DIR}/wasm
-                                           PUBLIC ${mod_wasm2c_SOURCE_DIR}/wasm2c
-                                           )
+                                                 PUBLIC ${rlbox_SOURCE_DIR}/code/include
+                                                 PUBLIC ${rlbox_SOURCE_DIR}/code/tests/rlbox_glue
+                                                 PUBLIC ${rlbox_SOURCE_DIR}/code/tests/rlbox_glue/lib
+                                                 PUBLIC ${rlbox_SOURCE_DIR}/wasm
+                                                 PUBLIC ${mod_wasm2c_SOURCE_DIR}/wasm2c
+                                                 )
 target_link_libraries(test_rlbox_glue_embed Catch2::Catch2
                                       ${CMAKE_THREAD_LIBS_INIT}
                                       ${CMAKE_DL_LIBS}
@@ -300,4 +300,8 @@ catch_discover_tests(test_rlbox_glue_shadow_asan)
 # Shortcuts ###################
 
 add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} -V)
-add_dependencies(check test_rlbox_glue test_rlbox_glue_embed test_rlbox_glue_shadow_asan glue_lib_so glue_lib_so_shadow_asan)
+add_dependencies(check test_rlbox_glue)
+add_dependencies(check test_rlbox_glue_embed)
+add_dependencies(check test_rlbox_glue_shadow_asan)
+add_dependencies(check glue_lib_so)
+add_dependencies(check glue_lib_so_shadow_asan)
