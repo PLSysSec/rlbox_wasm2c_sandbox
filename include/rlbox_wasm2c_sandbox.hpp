@@ -388,6 +388,14 @@ __attribute__((weak))
     #else
       void* ret = dlsym(library, prefixed_name.c_str());
     #endif
+    if (ret == nullptr) {
+      // Some lookups such as globals are not exposed as shared library symbols
+      uint32_t* heap_index_pointer = (uint32_t*) sandbox_info.lookup_wasm2c_nonfunc_export(sandbox, prefixed_name.c_str());
+      if (heap_index_pointer != nullptr) {
+        uint32_t heap_index = *heap_index_pointer;
+        ret = &(reinterpret_cast<char*>(heap_base)[heap_index]);
+      }
+    }
     return ret;
   }
 

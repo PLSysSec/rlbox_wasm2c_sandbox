@@ -16,3 +16,4 @@
 #define CreateSandbox(sandbox) sandbox.create_sandbox(GLUE_LIB_WASM2C_PATH)
 // NOLINTNEXTLINE
 #include "test_sandbox_glue.inc.cpp"
+#include "test_wasm2c_sandbox_wasmtests.cpp"
