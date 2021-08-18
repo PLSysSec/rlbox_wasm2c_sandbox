@@ -19,7 +19,9 @@
 
 #if defined(_WIN32)
 // Ensure the min/max macro in the header doesn't collide with functions in std::
+#ifndef NOMINMAX
 #define NOMINMAX
+#endif
 #include <Windows.h>
 #else
 #include <dlfcn.h>
