@@ -384,7 +384,7 @@ __attribute__((weak))
 
   inline void* symbol_lookup(std::string prefixed_name) {
     #if defined(_WIN32)
-      void* ret = GetProcAddress((HMODULE) library, prefixed_name.c_str());
+      void* ret = (void*) GetProcAddress((HMODULE) library, prefixed_name.c_str());
     #else
       void* ret = dlsym(library, prefixed_name.c_str());
     #endif
