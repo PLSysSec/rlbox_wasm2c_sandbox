@@ -400,12 +400,18 @@ __attribute__((weak))
   }
 
 protected:
-  inline void impl_create_sandbox(const char* wasm2c_module_path, const char* wasm_module_name = "")
+  #if defined(_WIN32)
+  using path_buf = const LPCWSTR;
+  #else
+  using path_buf = const char*;
+  #endif
+
+  inline void impl_create_sandbox(path_buf wasm2c_module_path, const char* wasm_module_name = "")
   {
     detail::dynamic_check(sandbox == nullptr, "Sandbox already initialized");
 
     #if defined(_WIN32)
-    library = (void*) LoadLibraryA(wasm2c_module_path);
+    library = (void*) LoadLibraryW(wasm2c_module_path);
     #else
     library = dlopen(wasm2c_module_path, RTLD_LAZY);
     #endif

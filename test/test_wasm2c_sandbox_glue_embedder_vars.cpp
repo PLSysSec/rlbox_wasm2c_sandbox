@@ -15,7 +15,11 @@ RLBOX_WASM2C_SANDBOX_STATIC_VARIABLES();
 #endif
 
 // NOLINTNEXTLINE
+#if defined(_WIN32)
+#define CreateSandbox(sandbox) sandbox.create_sandbox(L"" GLUE_LIB_WASM2C_PATH)
+#else
 #define CreateSandbox(sandbox) sandbox.create_sandbox(GLUE_LIB_WASM2C_PATH)
+#endif
 // NOLINTNEXTLINE
 #include "test_sandbox_glue.inc.cpp"
 #include "test_wasm2c_sandbox_wasmtests.cpp"
