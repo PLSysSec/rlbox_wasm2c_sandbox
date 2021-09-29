@@ -9,6 +9,10 @@
 #  error "Define CreateSandbox before including this file"
 #endif
 
+#ifndef CreateSandboxFallible
+#  error "Define CreateSandboxFallible before including this file"
+#endif
+
 #ifndef TestName
 #  error "Define TestName before including this file"
 #endif
@@ -30,4 +34,11 @@ TEST_CASE("wasm sandbox tests " TestName, "[wasm_sandbox_tests]")
     }
 
     sandbox.destroy_sandbox();
+}
+
+TEST_CASE("wasm sandbox fallible create " TestName, "[wasm_sandbox_tests]")
+{
+  rlbox::rlbox_sandbox<TestType> sandbox;
+  bool ret = CreateSandboxFallible(sandbox);
+  REQUIRE(ret == false);
 }
