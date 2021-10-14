@@ -385,6 +385,7 @@ __attribute__((weak))
   }
 
   inline void* symbol_lookup(std::string prefixed_name) {
+#ifndef RLBOX_USE_STATIC_CALLS
     #if defined(_WIN32)
       void* ret = (void*) GetProcAddress((HMODULE) library, prefixed_name.c_str());
     #else
@@ -399,9 +400,42 @@ __attribute__((weak))
       }
     }
     return ret;
+#else
+    detail::dynamic_check(false, "Should not be called for wasm2c sandboxes with static calls");
+    return nullptr;
+#endif
   }
 
 protected:
+
+#ifndef RLBOX_USE_STATIC_CALLS
+  void* impl_lookup_symbol(const char* func_name)
+  {
+    std::string prefixed_name = "w2c_";
+    prefixed_name += func_name;
+    void* ret = symbol_lookup(prefixed_name);
+    return ret;
+  }
+#else
+
+  #define rlbox_wasm2c_sandbox_lookup_symbol(func_name)                            \
+  reinterpret_cast<void*>(&w2c_##func_name) /* NOLINT */
+
+  // adding a template so that we can use static_assert to fire only if this
+  // function is invoked
+  template<typename T = void>
+  void* impl_lookup_symbol(const char* func_name)
+  {
+    constexpr bool fail = std::is_same_v<T, void>;
+    static_assert(
+      !fail,
+      "The no_op_sandbox uses static calls and thus developers should add\n\n"
+      "#define RLBOX_USE_STATIC_CALLS() rlbox_wasm2c_sandbox_lookup_symbol\n\n"
+      "to their code, to ensure that static calls are handled correctly.");
+    return nullptr;
+  }
+#endif
+
   #if defined(_WIN32)
   using path_buf = const LPCWSTR;
   #else
@@ -429,6 +463,7 @@ protected:
   {
     FALLIBLE_DYNAMIC_CHECK(infallible, sandbox == nullptr, "Sandbox already initialized");
 
+#ifndef RLBOX_USE_STATIC_CALLS
     #if defined(_WIN32)
     library = (void*) LoadLibraryW(wasm2c_module_path);
     #else
@@ -454,10 +489,16 @@ protected:
       #endif
       FALLIBLE_DYNAMIC_CHECK(infallible, false, error_msg.c_str());
     }
+#endif
 
+#ifndef RLBOX_USE_STATIC_CALLS
     std::string info_func_name = wasm_module_name;
     info_func_name += "get_wasm2c_sandbox_info";
     auto get_info_func = reinterpret_cast<wasm2c_sandbox_funcs_t(*)()>(symbol_lookup(info_func_name));
+#else
+    FALLIBLE_DYNAMIC_CHECK(infallible, wasm_module_name == "", "Static calls not supported with non empty module names");
+    auto get_info_func = reinterpret_cast<wasm2c_sandbox_funcs_t(*)()>(get_wasm2c_sandbox_info);
+#endif
     FALLIBLE_DYNAMIC_CHECK(infallible, get_info_func != nullptr, "wasm2c could not find <MODULE_NAME>get_wasm2c_sandbox_info");
     sandbox_info = get_info_func();
 
@@ -485,8 +526,13 @@ protected:
 
     // cache these for performance
     exec_env = sandbox;
+#ifndef RLBOX_USE_STATIC_CALLS
     malloc_index = impl_lookup_symbol("malloc");
     free_index = impl_lookup_symbol("free");
+#else
+    malloc_index = rlbox_wasm2c_sandbox_lookup_symbol(malloc);
+    free_index = rlbox_wasm2c_sandbox_lookup_symbol(free);
+#endif
     return true;
   }
 
@@ -503,6 +549,7 @@ protected:
       sandbox = nullptr;
     }
 
+#ifndef RLBOX_USE_STATIC_CALLS
     if (library != nullptr) {
       #if defined(_WIN32)
         FreeLibrary((HMODULE) library);
@@ -511,6 +558,7 @@ protected:
       #endif
       library = nullptr;
     }
+#endif
   }
 
   template<typename T>
@@ -640,14 +688,6 @@ protected:
   inline void* impl_get_memory_location() const
   {
     return sandbox_memory_info->data;
-  }
-
-  void* impl_lookup_symbol(const char* func_name)
-  {
-    std::string prefixed_name = "w2c_";
-    prefixed_name += func_name;
-    void* ret = symbol_lookup(prefixed_name);
-    return ret;
   }
 
   template<typename T, typename T_Converted, typename... T_Args>
