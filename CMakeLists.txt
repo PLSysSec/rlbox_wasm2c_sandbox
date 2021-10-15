@@ -334,6 +334,7 @@ catch_discover_tests(test_rlbox_glue_shadow_asan)
 
 add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} -V)
 add_dependencies(check test_rlbox_glue)
+add_dependencies(check test_rlbox_glue_static)
 add_dependencies(check test_rlbox_glue_embed)
 add_dependencies(check test_rlbox_glue_shadow_asan)
 add_dependencies(check glue_lib_so)
