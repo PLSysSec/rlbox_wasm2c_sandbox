@@ -489,6 +489,8 @@ protected:
       #endif
       FALLIBLE_DYNAMIC_CHECK(infallible, false, error_msg.c_str());
     }
+#else
+    RLBOX_WASM2C_UNUSED(library);
 #endif
 
 #ifndef RLBOX_USE_STATIC_CALLS
