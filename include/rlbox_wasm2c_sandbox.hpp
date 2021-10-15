@@ -254,7 +254,9 @@ __attribute__((weak))
 #endif
   static std::once_flag wasm2c_runtime_initialized;
   wasm_rt_memory_t* sandbox_memory_info = nullptr;
+#ifndef RLBOX_USE_STATIC_CALLS
   void* library = nullptr;
+#endif
   uintptr_t heap_base;
   void* exec_env = 0;
   void* malloc_index = 0;
@@ -384,8 +386,8 @@ __attribute__((weak))
     }
   }
 
-  inline void* symbol_lookup(std::string prefixed_name) {
 #ifndef RLBOX_USE_STATIC_CALLS
+  inline void* symbol_lookup(std::string prefixed_name) {
     #if defined(_WIN32)
       void* ret = (void*) GetProcAddress((HMODULE) library, prefixed_name.c_str());
     #else
@@ -400,11 +402,8 @@ __attribute__((weak))
       }
     }
     return ret;
-#else
-    detail::dynamic_check(false, "Should not be called for wasm2c sandboxes with static calls");
-    return nullptr;
-#endif
   }
+#endif
 
 protected:
 
@@ -429,7 +428,7 @@ protected:
     constexpr bool fail = std::is_same_v<T, void>;
     static_assert(
       !fail,
-      "The no_op_sandbox uses static calls and thus developers should add\n\n"
+      "The wasm2c_sandbox uses static calls and thus developers should add\n\n"
       "#define RLBOX_USE_STATIC_CALLS() rlbox_wasm2c_sandbox_lookup_symbol\n\n"
       "to their code, to ensure that static calls are handled correctly.");
     return nullptr;
@@ -493,8 +492,6 @@ protected:
       #endif
       FALLIBLE_DYNAMIC_CHECK(infallible, false, error_msg.c_str());
     }
-#else
-    RLBOX_WASM2C_UNUSED(library);
 #endif
 
 #ifndef RLBOX_USE_STATIC_CALLS
