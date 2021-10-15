@@ -453,13 +453,17 @@ protected:
   /**
    * @brief creates the Wasm sandbox from the given shared library
    *
-   * @param wasm2c_module_path path to shared library compiled with wasm2c
+   * @param wasm2c_module_path path to shared library compiled with wasm2c. This param is not specified if you are creating a statically linked sandbox.
    * @param infallible if set to true, the sandbox aborts on failure. If false, the sandbox returns creation status as a return value
    * @param wasm_module_name optional module name used when compiling with wasm2c
    * @return true when sandbox is successfully created
    * @return false when infallible if set to false and sandbox was not successfully created. If infallible is set to true, this function will never return false.
    */
-  inline bool impl_create_sandbox(path_buf wasm2c_module_path, bool infallible = true, const char* wasm_module_name = "")
+  inline bool impl_create_sandbox(
+#ifndef RLBOX_USE_STATIC_CALLS
+    path_buf wasm2c_module_path,
+#endif
+    bool infallible = true, const char* wasm_module_name = "")
   {
     FALLIBLE_DYNAMIC_CHECK(infallible, sandbox == nullptr, "Sandbox already initialized");
 
