@@ -496,7 +496,8 @@ protected:
     info_func_name += "get_wasm2c_sandbox_info";
     auto get_info_func = reinterpret_cast<wasm2c_sandbox_funcs_t(*)()>(symbol_lookup(info_func_name));
 #else
-    FALLIBLE_DYNAMIC_CHECK(infallible, wasm_module_name == "", "Static calls not supported with non empty module names");
+    // only permitted if there is no custom module name
+    FALLIBLE_DYNAMIC_CHECK(infallible, wasm_module_name.empty(), "Static calls not supported with non empty module names");
     auto get_info_func = reinterpret_cast<wasm2c_sandbox_funcs_t(*)()>(get_wasm2c_sandbox_info);
 #endif
     FALLIBLE_DYNAMIC_CHECK(infallible, get_info_func != nullptr, "wasm2c could not find <MODULE_NAME>get_wasm2c_sandbox_info");
