@@ -309,7 +309,7 @@ catch_discover_tests(test_rlbox_glue_embed)
 ####
 
 add_executable(test_rlbox_glue_shadow_asan test/test_wasm2c_sandbox_glue_main.cpp
-                                           test/test_wasm2c_sandbox_glue.cpp)
+                                           test/test_wasm2c_sandbox_glue_shadow.cpp)
 target_include_directories(test_rlbox_glue_shadow_asan PUBLIC ${CMAKE_SOURCE_DIR}/include
                                                        PUBLIC ${rlbox_SOURCE_DIR}/code/include
                                                        PUBLIC ${rlbox_SOURCE_DIR}/code/tests/rlbox_glue
