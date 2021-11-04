@@ -45,6 +45,15 @@
 #  endif
 #endif
 
+// Callbacks locks can optionally be disabled the host application if it is
+// being used in a single threaded context
+#ifdef RLBOX_DISABLE_CALLBACK_INVOKE_READLOCKS
+#  define RLBOX_ACQUIRE_CALLBACK_SHARED_GUARD(name, ...)
+#else
+#  define RLBOX_ACQUIRE_CALLBACK_SHARED_GUARD(name, ...)                       \
+    RLBOX_ACQUIRE_SHARED_GUARD(name, __VA_ARGS__)
+#endif
+
 namespace rlbox {
 
 namespace detail {
@@ -303,7 +312,7 @@ __attribute__((weak))
     using T_Func = T_Ret (*)(T_Args...);
     T_Func func;
     {
-      RLBOX_ACQUIRE_SHARED_GUARD(lock, thread_data.sandbox->callback_mutex);
+      RLBOX_ACQUIRE_CALLBACK_SHARED_GUARD(lock, thread_data.sandbox->callback_mutex);
       func = reinterpret_cast<T_Func>(thread_data.sandbox->callbacks[N]);
     }
     // Callbacks are invoked through function pointers, cannot use std::forward
@@ -325,7 +334,7 @@ __attribute__((weak))
     using T_Func = T_Ret (*)(T_Args...);
     T_Func func;
     {
-      RLBOX_ACQUIRE_SHARED_GUARD(lock, thread_data.sandbox->callback_mutex);
+      RLBOX_ACQUIRE_CALLBACK_SHARED_GUARD(lock, thread_data.sandbox->callback_mutex);
       func = reinterpret_cast<T_Func>(thread_data.sandbox->callbacks[N]);
     }
     // Callbacks are invoked through function pointers, cannot use std::forward
