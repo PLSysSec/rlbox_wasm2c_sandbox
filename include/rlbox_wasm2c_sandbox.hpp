@@ -304,7 +304,7 @@ __attribute__((weak))
     T_Func func;
     {
 #ifndef RLBOX_SINGLE_THREADED_INVOCATIONS
-      RLBOX_ACQUIRE_CALLBACK_SHARED_GUARD(lock, thread_data.sandbox->callback_mutex);
+      RLBOX_ACQUIRE_SHARED_GUARD(lock, thread_data.sandbox->callback_mutex);
 #endif
       func = reinterpret_cast<T_Func>(thread_data.sandbox->callbacks[N]);
     }
@@ -328,7 +328,7 @@ __attribute__((weak))
     T_Func func;
     {
 #ifndef RLBOX_SINGLE_THREADED_INVOCATIONS
-      RLBOX_ACQUIRE_CALLBACK_SHARED_GUARD(lock, thread_data.sandbox->callback_mutex);
+      RLBOX_ACQUIRE_SHARED_GUARD(lock, thread_data.sandbox->callback_mutex);
 #endif
       func = reinterpret_cast<T_Func>(thread_data.sandbox->callbacks[N]);
     }
