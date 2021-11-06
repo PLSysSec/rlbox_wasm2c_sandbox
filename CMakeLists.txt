@@ -274,13 +274,37 @@ target_link_libraries(test_rlbox_glue_static Catch2::Catch2
                                       glue_lib_static
 )
 
-target_compile_definitions(test_rlbox_glue_static PUBLIC GLUE_LIB_WASM2C_PATH="$<TARGET_FILE:glue_lib_so>")
 add_dependencies(test_rlbox_glue_static glue_lib_so)
 
 if(UNIX AND NOT (${CMAKE_SYSTEM_NAME} MATCHES "Darwin"))
   target_link_libraries(test_rlbox_glue_static rt)
 endif()
 catch_discover_tests(test_rlbox_glue_static)
+
+####
+
+add_executable(test_rlbox_glue_smallheap test/test_wasm2c_sandbox_glue_main.cpp
+                               test/test_wasm2c_sandbox_glue_smallheap.cpp)
+target_include_directories(test_rlbox_glue_smallheap PUBLIC ${CMAKE_SOURCE_DIR}/include
+                                           PUBLIC ${rlbox_SOURCE_DIR}/code/include
+                                           PUBLIC ${rlbox_SOURCE_DIR}/code/tests/rlbox_glue
+                                           PUBLIC ${rlbox_SOURCE_DIR}/code/tests/rlbox_glue/lib
+                                           PUBLIC ${rlbox_SOURCE_DIR}/wasm
+                                           PUBLIC ${mod_wasm2c_SOURCE_DIR}/wasm2c
+                                           PUBLIC ${GLUE_LIB_WASM_DIR}
+                                           )
+target_link_libraries(test_rlbox_glue_smallheap Catch2::Catch2
+                                      ${CMAKE_THREAD_LIBS_INIT}
+                                      ${CMAKE_DL_LIBS}
+                                      glue_lib_static
+)
+
+add_dependencies(test_rlbox_glue_smallheap glue_lib_so)
+
+if(UNIX AND NOT (${CMAKE_SYSTEM_NAME} MATCHES "Darwin"))
+  target_link_libraries(test_rlbox_glue_smallheap rt)
+endif()
+catch_discover_tests(test_rlbox_glue_smallheap)
 
 ####
 
@@ -335,6 +359,7 @@ catch_discover_tests(test_rlbox_glue_shadow_asan)
 add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} -V)
 add_dependencies(check test_rlbox_glue)
 add_dependencies(check test_rlbox_glue_static)
+add_dependencies(check test_rlbox_glue_smallheap)
 add_dependencies(check test_rlbox_glue_embed)
 add_dependencies(check test_rlbox_glue_shadow_asan)
 add_dependencies(check glue_lib_so)

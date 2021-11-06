@@ -6,15 +6,15 @@
 #include "rlbox_wasm2c_sandbox.hpp"
 
 // NOLINTNEXTLINE
-#define TestName "rlbox_wasm2c_sandbox static"
+#define TestName "rlbox_wasm2c_sandbox smallheap"
 // NOLINTNEXTLINE
 #define TestType rlbox::rlbox_wasm2c_sandbox
 
 // NOLINTNEXTLINE
 #if defined(_WIN32)
-#define CreateSandbox(sandbox) sandbox.create_sandbox()
+#define CreateSandbox(sandbox) sandbox.create_sandbox(true /* abort on fail */, 8 * 1024 * 1024 /* max heap */)
 #else
-#define CreateSandbox(sandbox) sandbox.create_sandbox()
+#define CreateSandbox(sandbox) sandbox.create_sandbox(true /* abort on fail */, 8 * 1024 * 1024 /* max heap */)
 #endif
 // NOLINTNEXTLINE
 #include "test_sandbox_glue.inc.cpp"
