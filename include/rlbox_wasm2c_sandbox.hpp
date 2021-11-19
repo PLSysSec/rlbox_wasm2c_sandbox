@@ -734,6 +734,7 @@ protected:
 #ifdef RLBOX_EMBEDDER_PROVIDES_TLS_STATIC_VARIABLES
     auto& thread_data = *get_rlbox_wasm2c_sandbox_thread_data();
 #endif
+    auto old_sandbox = thread_data.sandbox;
     thread_data.sandbox = this;
 
     // WASM functions are mangled in the following manner
@@ -822,6 +823,8 @@ protected:
     for (size_t i = 0; i < alloc_length; i++) {
       impl_free_in_sandbox(allocations_buff[i]);
     }
+
+    thread_data.sandbox = old_sandbox;
 
     if constexpr (!std::is_void_v<T_Ret>) {
       return ret;
