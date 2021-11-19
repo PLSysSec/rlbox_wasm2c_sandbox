@@ -2,6 +2,9 @@
 
 #include "wasm-rt.h"
 
+// Pull the helper header from the main repo for dynamic_check and scope_exit
+#include "rlbox_helpers.hpp"
+
 #include <cstdint>
 #include <iostream>
 #include <limits>
@@ -46,11 +49,6 @@
 #endif
 
 namespace rlbox {
-
-namespace detail {
-  // relying on the dynamic check settings (exception vs abort) in the rlbox lib
-  inline void dynamic_check(bool check, const char* const msg);
-}
 
 namespace wasm2c_detail {
 
@@ -736,6 +734,9 @@ protected:
 #endif
     auto old_sandbox = thread_data.sandbox;
     thread_data.sandbox = this;
+    auto on_exit = detail::make_scope_exit([&] {
+      thread_data.sandbox = old_sandbox;
+    });
 
     // WASM functions are mangled in the following manner
     // 1. All primitive types are left as is and follow an LP32 machine model
@@ -823,8 +824,6 @@ protected:
     for (size_t i = 0; i < alloc_length; i++) {
       impl_free_in_sandbox(allocations_buff[i]);
     }
-
-    thread_data.sandbox = old_sandbox;
 
     if constexpr (!std::is_void_v<T_Ret>) {
       return ret;
