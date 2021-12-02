@@ -110,14 +110,16 @@ elseif (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
 else()
   FetchContent_Declare(
     wasiclang
-    URL
-      https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-12/wasi-sdk-12.0-linux.tar.gz
+    GIT_REPOSITORY https://github.com/PLSysSec/wasi-sdk
+    GIT_TAG vw_sockets
     )
 endif()
 FetchContent_GetProperties(wasiclang)
 if(NOT wasiclang_POPULATED)
   FetchContent_Populate(wasiclang)
 endif()
+
+# add_subdirectory("${wasiclang_SUBBUILD_DIR}")
 
 FetchContent_Declare(
   mod_wasm2c
@@ -157,6 +159,13 @@ else()
     set (WASM2C_BUILD_TYPE Release)
   endif()
 endif()
+
+
+# Custom WasiClang
+add_custom_command( OUTPUT "${wasiclang_BINARY_DIR}/clang"
+                    WORKING_DIRECTORY "${wasiclang_SOURCE_DIR}"
+                    COMMAND ${MAKE_COMMAND}
+)
 
 # wasm2c ###################
 
