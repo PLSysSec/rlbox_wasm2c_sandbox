@@ -428,9 +428,9 @@ public:
       return 0;
     }
 
-    if(heap_size < WASM_PAGE_SIZE) {
+    if(heap_size <= WASM_PAGE_SIZE) {
       return WASM_PAGE_SIZE;
-    } else if (heap_size > WASM_MAX_HEAP) {
+    } else if (heap_size >= WASM_MAX_HEAP) {
       return WASM_MAX_HEAP;
     }
 
