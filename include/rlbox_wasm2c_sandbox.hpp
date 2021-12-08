@@ -434,7 +434,7 @@ public:
       return WASM_MAX_HEAP;
     }
 
-    return next_power_of_two(heap_size);
+    return next_power_of_two(static_cast<uint32_t>(heap_size));
   }
 
   static uint64_t rlbox_wasm2c_get_heap_page_count(uint64_t heap_size)
