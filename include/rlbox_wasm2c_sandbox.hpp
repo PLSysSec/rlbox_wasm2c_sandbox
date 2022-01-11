@@ -432,7 +432,8 @@ protected:
       sandbox_info.wasm_rt_sys_init();
     });
 
-    sandbox = sandbox_info.create_wasm2c_sandbox();
+    wasm2c_rt_init_data init_data = {".", (unsigned char *)"", 0, (unsigned char *)"", 0, "", NULL};
+    sandbox = sandbox_info.create_wasm2c_sandbox(&init_data);
     detail::dynamic_check(sandbox != nullptr, "Sandbox could not be created");
 
     sandbox_memory_info = (wasm_rt_memory_t*) sandbox_info.lookup_wasm2c_nonfunc_export(sandbox, "w2c_memory");
