@@ -35,6 +35,10 @@ file(GLOB_RECURSE
      ${CMAKE_SOURCE_DIR}/c_src/*.ii
      ${CMAKE_SOURCE_DIR}/c_src/*.[CHI])
 
+if (APPLE)
+  add_link_options(-undefined dynamic_lookup)
+endif ()
+
 # Dev Tools ###################
 
 if(DEV)
