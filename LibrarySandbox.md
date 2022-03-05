@@ -2,16 +2,16 @@
 
 In order to sandbox a library of your choice.
 
-- Build the sources of your library along with the file `c_src/wasm2c_sandbox_wrapper.c` and passing the flag `-Wl,--export-all -Wl,--no-entry -Wl,--growable-table` to the linker using the wasi-clang compiler. This will produce a wasm module. The required wasi-clang compiler is available in the path `build/_deps/wasiclang-src/opt/wasi-sdk/bin/clang`.
+- Build the sources of your library along with the file `c_src/wasm2c_sandbox_wrapper.c` and passing the flag `-Wl,--export-all -Wl,--no-entry -Wl,--growable-table` to the linker using the wasi-clang compiler. This will produce a wasm module. The required wasi-clang compiler is available in the path `build/_deps/wasiclang-src/bin/clang`.
 For instance, to edit an existing `make` based build system, you can run the commmand.
 
    ```bash
-   build/_deps/wasiclang-src/opt/wasi-sdk/bin/clang --sysroot build/_deps/wasiclang-src/opt/wasi-sdk/share/wasi-sysroot/ c_src/wasm2c_sandbox_wrapper.c -c -o c_src/wasm2c_sandbox_wrapper.o
+   build/_deps/wasiclang-src/bin/clang --sysroot build/_deps/wasiclang-src/share/wasi-sysroot c_src/wasm2c_sandbox_wrapper.c -c -o c_src/wasm2c_sandbox_wrapper.o
 
-   CC=build/_deps/wasiclang-src/opt/wasi-sdk/bin/clang                            \
-   CXX=build/_deps/wasiclang-src/opt/wasi-sdk/bin/clang++                         \
-   CFLAGS="--sysroot build/_deps/wasiclang-src/opt/wasi-sdk/share/wasi-sysroot/"  \
-   LD=build/_deps/wasiclang-src/opt/wasi-sdk/bin/wasm-ld                          \
+   CC=build/_deps/wasiclang-src/bin/clang                            \
+   CXX=build/_deps/wasiclang-src/bin/clang++                         \
+   CFLAGS="--sysroot build/_deps/wasiclang-src/share/wasi-sysroot"  \
+   LD=build/_deps/wasiclang-src/bin/wasm-ld                          \
    LDLIBS=wasm2c_sandbox_wrapper.o                                                \
    LDFLAGS="-Wl,--export-all -Wl,--no-entry -Wl,--growable-table"                   \
    make
