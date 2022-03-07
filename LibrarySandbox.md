@@ -8,12 +8,12 @@ For instance, to edit an existing `make` based build system, you can run the com
    ```bash
    build/_deps/wasiclang-src/bin/clang --sysroot build/_deps/wasiclang-src/share/wasi-sysroot c_src/wasm2c_sandbox_wrapper.c -c -o c_src/wasm2c_sandbox_wrapper.o
 
-   CC=build/_deps/wasiclang-src/bin/clang                            \
-   CXX=build/_deps/wasiclang-src/bin/clang++                         \
+   CC=build/_deps/wasiclang-src/bin/clang                           \
+   CXX=build/_deps/wasiclang-src/bin/clang++                        \
    CFLAGS="--sysroot build/_deps/wasiclang-src/share/wasi-sysroot"  \
-   LD=build/_deps/wasiclang-src/bin/wasm-ld                          \
-   LDLIBS=wasm2c_sandbox_wrapper.o                                                \
-   LDFLAGS="-Wl,--export-all -Wl,--no-entry -Wl,--growable-table"                   \
+   LD=build/_deps/wasiclang-src/bin/wasm-ld                         \
+   LDLIBS=wasm2c_sandbox_wrapper.o                                  \
+   LDFLAGS="-Wl,--export-all -Wl,--no-entry -Wl,--growable-table"   \
    make
    ```
 
@@ -49,5 +49,5 @@ For instance, to edit an existing `make` based build system, you can run the com
 - To compile the above example, you must include the rlbox header files in `build/_deps/rlbox-src/code/include`, the integration header files in `include/`. For instance, you can compile the above with
 
    ```bash
-   g++ -std=c++17 example.cpp -o example -I build/_deps/rlbox-src/code/include -I include
+   g++ -std=c++17 example.cpp -o example -I build/_deps/rlbox-src/code/include -I include -I build/_deps/mod_wasm2c-src/wasm2c/ -lpthread
    ```
