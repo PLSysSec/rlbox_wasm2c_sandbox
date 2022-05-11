@@ -62,7 +62,7 @@ find_program(CARGO "cargo")
 if(!CARGO)
   message(
     FATAL_ERROR
-      "Could not find cargo. Please install cargo as it is needed to build rust libraries."
+      "Could not find cargo. Please instal/l cargo as it is needed to build rust libraries."
     )
 endif()
 
@@ -86,7 +86,7 @@ endif()
 
 FetchContent_Declare(catch2
                      GIT_REPOSITORY https://github.com/catchorg/Catch2.git
-                     GIT_TAG v2.9.1)
+                     GIT_TAG v2.13.9)
 FetchContent_GetProperties(catch2)
 if(NOT catch2_POPULATED)
   FetchContent_Populate(catch2)
