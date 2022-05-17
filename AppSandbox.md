@@ -1,4 +1,4 @@
-# Using this tool to sandbox a library
+# Using this tool to sandbox a full program
 
 In order to sandbox a full program of your choice.
 
