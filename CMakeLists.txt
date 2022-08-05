@@ -352,7 +352,7 @@ add_dependencies(test_rlbox_glue_shadow_asan glue_lib_so_shadow_asan)
 if(UNIX AND NOT (${CMAKE_SYSTEM_NAME} MATCHES "Darwin"))
   target_link_libraries(test_rlbox_glue_shadow_asan rt)
 endif()
-catch_discover_tests(test_rlbox_glue_shadow_asan)
+# catch_discover_tests(test_rlbox_glue_shadow_asan)
 
 # Shortcuts ###################
 
