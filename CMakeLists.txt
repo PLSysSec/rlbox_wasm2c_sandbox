@@ -84,6 +84,8 @@ if(NOT rlbox_POPULATED)
   FetchContent_Populate(rlbox)
 endif()
 
+# set (rlbox_SOURCE_DIR "/home/shr/Code/LibrarySandboxing/rlbox_api_cpp17/")
+
 FetchContent_Declare(catch2
                      GIT_REPOSITORY https://github.com/catchorg/Catch2.git
                      GIT_TAG v2.9.1)
@@ -145,15 +147,20 @@ else()
 endif()
 
 if(DEV)
+  set(WASM2C_BUILD_DIR_SUFFIX "debug")
   set (WASM2C_BUILD_TYPE Debug)
 else()
-  if ("${DCMAKE_BUILD_TYPE}" STREQUAL "Debug")
+  if ("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
+    set(WASM2C_BUILD_DIR_SUFFIX "debug")
     set (WASM2C_BUILD_TYPE Debug)
-  elseif ("${DCMAKE_BUILD_TYPE}" STREQUAL "RelWithDebInfo")
+  elseif ("${CMAKE_BUILD_TYPE}" STREQUAL "RelWithDebInfo")
+    set(WASM2C_BUILD_DIR_SUFFIX "relwithdebinfo")
     set (WASM2C_BUILD_TYPE RelWithDebInfo)
-  elseif ("${DCMAKE_BUILD_TYPE}" STREQUAL "MinSizeRel")
+  elseif ("${CMAKE_BUILD_TYPE}" STREQUAL "MinSizeRel")
+    set(WASM2C_BUILD_DIR_SUFFIX "minsizerel")
     set (WASM2C_BUILD_TYPE MinSizeRel)
   else()
+    set(WASM2C_BUILD_DIR_SUFFIX "release")
     set (WASM2C_BUILD_TYPE Release)
   endif()
 endif()
@@ -161,8 +168,7 @@ endif()
 # wasm2c ###################
 
 set(WASM2C_RUNTIME_SOURCE_DIR "${mod_wasm2c_SOURCE_DIR}/wasm2c/")
-set(WASM2C_RUNTIME_DIR "${mod_wasm2c_SOURCE_DIR}/build/")
-set(WASM2C_COMPILER_DIR "${mod_wasm2c_SOURCE_DIR}/bin/")
+set(WASM2C_RUNTIME_DIR "${mod_wasm2c_SOURCE_DIR}/build_${WASM2C_BUILD_DIR_SUFFIX}/")
 
 set(C_SOURCE_FILES "${CMAKE_SOURCE_DIR}/c_src/wasm2c_sandbox_wrapper.c")
 set(GLUE_LIB_WASM_DIR "${CMAKE_BINARY_DIR}/wasm/")
@@ -179,9 +185,9 @@ add_custom_command(OUTPUT "${GLUE_LIB_H}" "${GLUE_LIB_C}" "${GLUE_LIB_WASM}"
                            -DCMAKE_CXX_FLAGS="${RLBOX_SANITIZER_COMPILE_FLAGS}"
                            -DLINK_FLAGS="${RLBOX_SANITIZER_LINK_FLAGS}"
                            -S  .
-                           -B ./build
+                           -B ${WASM2C_RUNTIME_DIR}
                    COMMAND ${CMAKE_COMMAND}
-                           --build ./build
+                           --build ${WASM2C_RUNTIME_DIR}
                            --config ${WASM2C_BUILD_TYPE}
                            --parallel
                     COMMAND ${CMAKE_COMMAND} -E make_directory ${GLUE_LIB_WASM_DIR}
@@ -192,7 +198,7 @@ add_custom_command(OUTPUT "${GLUE_LIB_H}" "${GLUE_LIB_C}" "${GLUE_LIB_WASM}"
                             -o ${GLUE_LIB_WASM}
                             ${CMAKE_SOURCE_DIR}/c_src/wasm2c_sandbox_wrapper.c
                             ${rlbox_SOURCE_DIR}/code/tests/rlbox_glue/lib/libtest.c
-                    COMMAND ${WASM2C_COMPILER_DIR}/wasm2c
+                    COMMAND ${WASM2C_RUNTIME_DIR}/wasm2c
                             -o ${GLUE_LIB_C}
                             ${GLUE_LIB_WASM}
                    COMMENT "Building wasm2c compiler, runtime and wasm sandboxed library")
