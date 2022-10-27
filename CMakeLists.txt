@@ -121,16 +121,16 @@ if(NOT wasiclang_POPULATED)
   FetchContent_Populate(wasiclang)
 endif()
 
-FetchContent_Declare(
-  mod_wasm2c
-  GIT_REPOSITORY https://github.com/PLSysSec/wasm2c_sandbox_compiler
-  GIT_TAG main)
-FetchContent_GetProperties(mod_wasm2c)
-if(NOT mod_wasm2c_POPULATED)
-  FetchContent_Populate(mod_wasm2c)
-endif()
+# FetchContent_Declare(
+#   mod_wasm2c
+#   GIT_REPOSITORY https://github.com/PLSysSec/wasm2c_sandbox_compiler
+#   GIT_TAG main)
+# FetchContent_GetProperties(mod_wasm2c)
+# if(NOT mod_wasm2c_POPULATED)
+#   FetchContent_Populate(mod_wasm2c)
+# endif()
 
-# set (mod_wasm2c_SOURCE_DIR "/home/shr/Code/LibrarySandboxing/wasm2c_sandbox_compiler/")
+set (mod_wasm2c_SOURCE_DIR "/home/shr/Code/LibrarySandboxing/wasm2c_sandbox_compiler/")
 # set (mod_wasm2c_SOURCE_DIR "C:/Users/shr/Code/wasm2c_sandbox_compiler/")
 
 if(DEV)
@@ -210,11 +210,7 @@ if(DEV)
   add_link_options(${RLBOX_SANITIZER_LINK_FLAGS})
 endif()
 
-file(GLOB_RECURSE
-     WASM2C_RUNTIME_CODE_C
-     ${WASM2C_RUNTIME_SOURCE_DIR}/*.c)
-
-set(WASM2C_RUNTIME_CODE ${WASM2C_RUNTIME_CODE_C} ${WASM2C_RUNTIME_SOURCE_DIR}/wasm-rt-shadow.cpp)
+set(WASM2C_RUNTIME_CODE ${WASM2C_RUNTIME_SOURCE_DIR}/wasm-rt-impl.c ${WASM2C_RUNTIME_SOURCE_DIR}/wasm-rt-os-unix.c ${WASM2C_RUNTIME_SOURCE_DIR}/wasm-rt-os-win.c ${WASM2C_RUNTIME_SOURCE_DIR}/wasm-rt-wasi.c ${WASM2C_RUNTIME_SOURCE_DIR}/wasm-rt-shadow.cpp)
 list(FILTER WASM2C_RUNTIME_CODE EXCLUDE REGEX "${WASM2C_RUNTIME_SOURCE_DIR}/examples/.*" )
 
 add_library(glue_lib_static STATIC ${GLUE_LIB_C} ${WASM2C_RUNTIME_CODE})
