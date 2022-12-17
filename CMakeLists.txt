@@ -176,6 +176,12 @@ set(GLUE_LIB_WASM "${GLUE_LIB_WASM_DIR}/glue_lib_wasm2c.wasm")
 set(GLUE_LIB_H "${GLUE_LIB_WASM_DIR}/glue_lib_wasm2c.h")
 set(GLUE_LIB_C "${GLUE_LIB_WASM_DIR}/glue_lib_wasm2c.c")
 
+if(MSVC)
+  set(WASM2C_PATH ${WASM2C_RUNTIME_DIR}/${WASM2C_BUILD_TYPE}/wasm2c.exe)
+else()
+  set(WASM2C_PATH ${WASM2C_RUNTIME_DIR}/wasm2c)
+endif()
+
 add_custom_command(OUTPUT "${GLUE_LIB_H}" "${GLUE_LIB_C}" "${GLUE_LIB_WASM}"
                    DEPENDS ${C_SOURCE_FILES}
                    WORKING_DIRECTORY "${mod_wasm2c_SOURCE_DIR}"
@@ -198,7 +204,7 @@ add_custom_command(OUTPUT "${GLUE_LIB_H}" "${GLUE_LIB_C}" "${GLUE_LIB_WASM}"
                             -o ${GLUE_LIB_WASM}
                             ${CMAKE_SOURCE_DIR}/c_src/wasm2c_sandbox_wrapper.c
                             ${rlbox_SOURCE_DIR}/code/tests/rlbox_glue/lib/libtest.c
-                    COMMAND ${WASM2C_RUNTIME_DIR}/wasm2c
+                    COMMAND ${WASM2C_PATH}
                             -o ${GLUE_LIB_C}
                             ${GLUE_LIB_WASM}
                    COMMENT "Building wasm2c compiler, runtime and wasm sandboxed library")
