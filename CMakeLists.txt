@@ -123,7 +123,7 @@ endif()
 
 FetchContent_Declare(
   mod_wasm2c
-  GIT_REPOSITORY https://github.com/PLSysSec/wasm2c_sandbox_compiler
+  GIT_REPOSITORY https://github.com/WebAssembly/wabt/
   GIT_TAG main)
 FetchContent_GetProperties(mod_wasm2c)
 if(NOT mod_wasm2c_POPULATED)
@@ -200,7 +200,7 @@ add_custom_command(OUTPUT "${GLUE_LIB_H}" "${GLUE_LIB_C}" "${GLUE_LIB_WASM}"
                     COMMAND ${wasiclang_SOURCE_DIR}/bin/clang
                             --sysroot ${wasiclang_SOURCE_DIR}/share/wasi-sysroot/
                             -O3
-                            -Wl,--export-all -Wl,--no-entry -Wl,--growable-table -Wl,--stack-first -Wl,-z,stack-size=1048576
+                            -Wl,--export-all -Wl,--no-entry -Wl,--growable-table -Wl,--stack-first -Wl,-z,stack-size=1048576 -Wl,--import-memory
                             -o ${GLUE_LIB_WASM}
                             ${CMAKE_SOURCE_DIR}/c_src/wasm2c_sandbox_wrapper.c
                             ${rlbox_SOURCE_DIR}/code/tests/rlbox_glue/lib/libtest.c
@@ -216,7 +216,7 @@ if(DEV)
   add_link_options(${RLBOX_SANITIZER_LINK_FLAGS})
 endif()
 
-set(WASM2C_RUNTIME_CODE ${WASM2C_RUNTIME_SOURCE_DIR}/wasm-rt-impl.c ${WASM2C_RUNTIME_SOURCE_DIR}/wasm-rt-os-unix.c ${WASM2C_RUNTIME_SOURCE_DIR}/wasm-rt-os-win.c ${WASM2C_RUNTIME_SOURCE_DIR}/wasm-rt-wasi.c ${WASM2C_RUNTIME_SOURCE_DIR}/wasm-rt-shadow.cpp)
+set(WASM2C_RUNTIME_CODE ${WASM2C_RUNTIME_SOURCE_DIR}/wasm-rt-impl.c ${CMAKE_SOURCE_DIR}/c_src/wasm-rt-minwasi.c ${CMAKE_SOURCE_DIR}/c_src/wasm-rt-os.c)
 list(FILTER WASM2C_RUNTIME_CODE EXCLUDE REGEX "${WASM2C_RUNTIME_SOURCE_DIR}/examples/.*" )
 
 add_library(glue_lib_static STATIC ${GLUE_LIB_C} ${WASM2C_RUNTIME_CODE})
@@ -229,11 +229,11 @@ add_dependencies(glue_lib_so glue_lib_static)
 # default firefox flags
 # target_compile_options(glue_lib_so PRIVATE -Werror -Wall -Wempty-body -Wignored-qualifiers -Wpointer-arith -Wsign-compare -Wtype-limits -Wunreachable-code -Wduplicated-cond -Wno-error=maybe-uninitialized -Wno-error=deprecated-declarations -Wno-error=array-bounds -Wno-error=coverage-mismatch -Wno-error=free-nonheap-object -Wno-multistatement-macros -Wno-error=class-memaccess -Wno-error=deprecated-copy -Wno-error=unused-but-set-variable -Wformat -Wformat-overflow=2 -Wno-psabi -Wno-error=unused-function)
 
-add_library(glue_lib_so_shadow_asan SHARED ${GLUE_LIB_C} ${WASM2C_RUNTIME_CODE})
-target_include_directories(glue_lib_so_shadow_asan PRIVATE ${mod_wasm2c_SOURCE_DIR}/wasm2c)
-target_compile_definitions(glue_lib_so_shadow_asan PRIVATE WASM_CHECK_SHADOW_MEMORY)
-# Needed else both binaries invoke the custom command to generate ${GLUE_LIB_C}
-add_dependencies(glue_lib_so_shadow_asan glue_lib_so)
+# add_library(glue_lib_so_shadow_asan SHARED ${GLUE_LIB_C} ${WASM2C_RUNTIME_CODE})
+# target_include_directories(glue_lib_so_shadow_asan PRIVATE ${mod_wasm2c_SOURCE_DIR}/wasm2c)
+# target_compile_definitions(glue_lib_so_shadow_asan PRIVATE WASM_CHECK_SHADOW_MEMORY)
+# # Needed else both binaries invoke the custom command to generate ${GLUE_LIB_C}
+# add_dependencies(glue_lib_so_shadow_asan glue_lib_so)
 
 include(CTest)
 include(Catch)
@@ -340,27 +340,27 @@ catch_discover_tests(test_rlbox_glue_embed)
 
 ####
 
-add_executable(test_rlbox_glue_shadow_asan test/test_wasm2c_sandbox_glue_main.cpp
-                                           test/test_wasm2c_sandbox_glue_shadow.cpp)
-target_include_directories(test_rlbox_glue_shadow_asan PUBLIC ${CMAKE_SOURCE_DIR}/include
-                                                       PUBLIC ${rlbox_SOURCE_DIR}/code/include
-                                                       PUBLIC ${rlbox_SOURCE_DIR}/code/tests/rlbox_glue
-                                                       PUBLIC ${rlbox_SOURCE_DIR}/code/tests/rlbox_glue/lib
-                                                       PUBLIC ${rlbox_SOURCE_DIR}/wasm
-                                                       PUBLIC ${mod_wasm2c_SOURCE_DIR}/wasm2c
-                          )
-target_link_libraries(test_rlbox_glue_shadow_asan Catch2::Catch2
-                                                  ${CMAKE_THREAD_LIBS_INIT}
-                                                  ${CMAKE_DL_LIBS}
-)
-
-target_compile_definitions(test_rlbox_glue_shadow_asan PUBLIC GLUE_LIB_WASM2C_PATH="$<TARGET_FILE:glue_lib_so_shadow_asan>")
-add_dependencies(test_rlbox_glue_shadow_asan glue_lib_so_shadow_asan)
-
-if(UNIX AND NOT (${CMAKE_SYSTEM_NAME} MATCHES "Darwin"))
-  target_link_libraries(test_rlbox_glue_shadow_asan rt)
-endif()
-# catch_discover_tests(test_rlbox_glue_shadow_asan)
+# add_executable(test_rlbox_glue_shadow_asan test/test_wasm2c_sandbox_glue_main.cpp
+#                                            test/test_wasm2c_sandbox_glue_shadow.cpp)
+# target_include_directories(test_rlbox_glue_shadow_asan PUBLIC ${CMAKE_SOURCE_DIR}/include
+#                                                        PUBLIC ${rlbox_SOURCE_DIR}/code/include
+#                                                        PUBLIC ${rlbox_SOURCE_DIR}/code/tests/rlbox_glue
+#                                                        PUBLIC ${rlbox_SOURCE_DIR}/code/tests/rlbox_glue/lib
+#                                                        PUBLIC ${rlbox_SOURCE_DIR}/wasm
+#                                                        PUBLIC ${mod_wasm2c_SOURCE_DIR}/wasm2c
+#                           )
+# target_link_libraries(test_rlbox_glue_shadow_asan Catch2::Catch2
+#                                                   ${CMAKE_THREAD_LIBS_INIT}
+#                                                   ${CMAKE_DL_LIBS}
+# )
+# 
+# target_compile_definitions(test_rlbox_glue_shadow_asan PUBLIC GLUE_LIB_WASM2C_PATH="$<TARGET_FILE:glue_lib_so_shadow_asan>")
+# add_dependencies(test_rlbox_glue_shadow_asan glue_lib_so_shadow_asan)
+# 
+# if(UNIX AND NOT (${CMAKE_SYSTEM_NAME} MATCHES "Darwin"))
+#   target_link_libraries(test_rlbox_glue_shadow_asan rt)
+# endif()
+# # catch_discover_tests(test_rlbox_glue_shadow_asan)
 
 # Shortcuts ###################
 
@@ -369,6 +369,6 @@ add_dependencies(check test_rlbox_glue)
 add_dependencies(check test_rlbox_glue_static)
 add_dependencies(check test_rlbox_glue_smallheap)
 add_dependencies(check test_rlbox_glue_embed)
-add_dependencies(check test_rlbox_glue_shadow_asan)
+# add_dependencies(check test_rlbox_glue_shadow_asan)
 add_dependencies(check glue_lib_so)
-add_dependencies(check glue_lib_so_shadow_asan)
+# add_dependencies(check glue_lib_so_shadow_asan)
