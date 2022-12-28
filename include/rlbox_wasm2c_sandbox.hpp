@@ -58,9 +58,9 @@
 #define RLBOX_WASM2C_MODULE_NAME rlbox
 #endif
 
-#define RLBOX_WASM2C_MODULE_FUNC_HELPER(part1, part2, part3) part1##part2##part3
-// TODO: fix
-#define RLBOX_WASM2C_MODULE_FUNC(name) RLBOX_WASM2C_MODULE_FUNC_HELPER(Z_,glue_lib_wasm2c,name)
+#define RLBOX_WASM2C_MODULE_FUNC_HELPER2(part1, part2, part3) part1##part2##part3
+#define RLBOX_WASM2C_MODULE_FUNC_HELPER(part1, part2, part3) RLBOX_WASM2C_MODULE_FUNC_HELPER2(part1, part2, part3)
+#define RLBOX_WASM2C_MODULE_FUNC(name) RLBOX_WASM2C_MODULE_FUNC_HELPER(Z_,RLBOX_WASM2C_MODULE_NAME,name)
 
 namespace rlbox {
   class rlbox_wasm2c_sandbox;
@@ -285,6 +285,7 @@ public:
   // Needs to be public to be accessible in Z_envZ_memory
   wasm_rt_memory_t sandbox_memory_info;
 private:
+  wasm_rt_funcref_table_t* sandbox_callback_table = nullptr;
 #ifndef RLBOX_USE_STATIC_CALLS
   void* library = nullptr;
 #endif
@@ -294,6 +295,7 @@ private:
   void* free_index = 0;
   size_t return_slot_size = 0;
   T_PointerType return_slot = 0;
+  mutable std::vector<T_PointerType> callback_free_list;
 
   static const size_t MAX_CALLBACKS = 128;
   mutable RLBOX_SHARED_LOCK(callback_mutex);
@@ -382,31 +384,22 @@ private:
   {
     // Class return types as promoted to args
     constexpr bool promoted = std::is_class_v<T_Ret>;
+    constexpr uint32_t param_count = promoted? (sizeof...(T_Args) + 1) : (sizeof...(T_Args));
+    constexpr uint32_t ret_count = promoted? 0 : (std::is_void_v<T_Ret>? 0 : 1);
 
-    // If return type is void, then there is no return type
-    // But it is fine if we add it anyway as it as at the end of the array
-    // and we pass in counts to lookup_wasm2c_func_index that would result in this
-    // element not being accessed
-    wasm_rt_type_t ret_param_types[] = {
-      wasm2c_detail::convert_type_to_wasm_type<T_Args>::wasm2c_type...,
-      wasm2c_detail::convert_type_to_wasm_type<T_Ret>::wasm2c_type
-    };
-
-    uint32_t param_count = 0;
-    uint32_t ret_count = 0;
-
-    if constexpr (promoted) {
-      param_count = sizeof...(T_Args) + 1;
-      ret_count = 0;
+    uint32_t ret = 0;
+    if constexpr (ret_count == 0) {
+      ret = wasm_rt_register_func_type(param_count, ret_count
+        ,wasm2c_detail::convert_type_to_wasm_type<T_Args>::wasm2c_type...
+      );
     } else {
-      param_count = sizeof...(T_Args);
-      ret_count = std::is_void_v<T_Ret>? 0 : 1;
+      ret = wasm_rt_register_func_type(param_count, ret_count,
+        wasm2c_detail::convert_type_to_wasm_type<T_Args>::wasm2c_type...,
+        wasm2c_detail::convert_type_to_wasm_type<T_Ret>::wasm2c_type
+      );
     }
 
-    // TODO:
-    abort();
-    // auto ret = sandbox_info.lookup_wasm2c_func_index(sandbox, param_count, ret_count, ret_param_types);
-    // return ret;
+    return ret;
   }
 
   void ensure_return_slot_size(size_t size)
@@ -654,7 +647,7 @@ public:
 #else
       std::string mod_init_funcname = RLBOX_WASM2C_STRINGIFY(RLBOX_WASM2C_MODULE_FUNC(_init_module));
       auto mod_init_func = reinterpret_cast<void(*)()>(symbol_lookup(mod_init_funcname));
-      FALLIBLE_DYNAMIC_CHECK(infallible, mod_init_func != nullptr, "could not find wasm2c module: " RLBOX_WASM2C_MODULE_NAME);
+      FALLIBLE_DYNAMIC_CHECK(infallible, mod_init_func != nullptr, "could not find wasm2c module: " RLBOX_WASM2C_STRINGIFY(RLBOX_WASM2C_MODULE_NAME));
       mod_init_func();
 #endif
     });
@@ -691,12 +684,15 @@ public:
     }
 
     exec_env = wasm2c_instance.get();
-#ifndef RLBOX_USE_STATIC_CALLS
-    malloc_index = impl_lookup_symbol("malloc");
-    free_index = impl_lookup_symbol("free");
-#else
+#ifdef RLBOX_USE_STATIC_CALLS
     malloc_index = rlbox_wasm2c_sandbox_lookup_symbol(malloc);
     free_index = rlbox_wasm2c_sandbox_lookup_symbol(free);
+    sandbox_callback_table = &(wasm2c_instance->w2c_T0);
+#else
+    malloc_index = impl_lookup_symbol("malloc");
+    free_index = impl_lookup_symbol("free");
+    // TODO: fix
+    abort();
 #endif
 
     return true;
@@ -715,7 +711,7 @@ public:
       RLBOX_WASM2C_MODULE_FUNC(_free)(wasm2c_instance.get());
 #else
       std::string mod_free_funcname = RLBOX_WASM2C_STRINGIFY(RLBOX_WASM2C_MODULE_FUNC(_free));
-      auto mod_free_func = reinterpret_cast<void(*)(Z_glue_lib_wasm2c_instance_t*)>(symbol_lookup(mod_free_funcname));
+      auto mod_free_func = reinterpret_cast<void(*)(void*)>(symbol_lookup(mod_free_funcname));
       FALLIBLE_DYNAMIC_CHECK(infallible, mod_free_func != nullptr, "could not find wasm2c module: " RLBOX_WASM2C_MODULE_NAME);
       mod_free_func(wasm2c_instance.get());
 #endif
@@ -765,11 +761,13 @@ public:
         slot_number = found->second;
       } else {
 
-        // auto func_type_idx = get_wasm2c_func_index(static_cast<T>(nullptr));
-        // slot_number =
-        //   sandbox_info.add_wasm2c_callback(sandbox, func_type_idx, const_cast<void*>(p), WASM_RT_INTERNAL_FUNCTION);
-        //TODO: fix
-        abort();
+        slot_number = new_callback_slot();
+        wasm_rt_funcref_t func_val;
+        func_val.func_type = get_wasm2c_func_index(static_cast<T>(nullptr));
+        func_val.func = reinterpret_cast<wasm_rt_function_ptr_t>(const_cast<void*>(p));
+        func_val.module_instance = wasm2c_instance.get();
+
+        sandbox_callback_table->data[slot_number] = func_val;
         internal_callbacks[p] = slot_number;
         slot_assignments[slot_number] = p;
       }
@@ -993,12 +991,48 @@ public:
       reinterpret_cast<T_Converted*>(free_index), p);
   }
 
+private:
+  // Should be called with callback_mutex held
+  uint32_t new_callback_slot() const {
+    if (callback_free_list.size() > 0) {
+      uint32_t ret = callback_free_list.back();
+      callback_free_list.pop_back();
+      return ret;
+    }
+
+    const uint32_t curr_size = sandbox_callback_table->size;
+
+    detail::dynamic_check(curr_size < sandbox_callback_table->max_size,
+      "Could not find an empty row in Wasm instance table. This would "
+      "happen if you have registered too many callbacks, or unsandboxed "
+      "too many function pointers.");
+
+    wasm_rt_funcref_t func_val {0};
+    // on success, this returns the previous number of elements in the table
+    const uint32_t ret = wasm_rt_grow_funcref_table(sandbox_callback_table, 1, func_val);
+
+    detail::dynamic_check(ret != 0 && ret != (uint32_t) -1,
+      "Adding a new callback slot to the wasm instance failed.");
+
+    // We have expanded the number of slots
+    // Previous slots size: ret
+    // New slot is at index: ret
+    const uint32_t slot_number = ret;
+    return slot_number;
+  }
+
+  void free_callback_slot(uint32_t slot) const {
+    callback_free_list.push_back(slot);
+  }
+
+public:
+
   template<typename T_Ret, typename... T_Args>
   inline T_PointerType impl_register_callback(void* key, void* callback)
   {
     bool found = false;
     uint32_t found_loc = 0;
-    void* chosen_interceptor = nullptr;
+    wasm_rt_function_ptr_t chosen_interceptor = nullptr;
 
     RLBOX_ACQUIRE_UNIQUE_GUARD(lock, callback_mutex);
 
@@ -1011,11 +1045,11 @@ public:
         found_loc = i;
 
         if constexpr (std::is_class_v<T_Ret>) {
-          chosen_interceptor = reinterpret_cast<void*>(
+          chosen_interceptor = (wasm_rt_function_ptr_t)(
             callback_interceptor_promoted<i, T_Ret, T_Args...>);
         } else {
           chosen_interceptor =
-            reinterpret_cast<void*>(callback_interceptor<i, T_Ret, T_Args...>);
+            (wasm_rt_function_ptr_t)(callback_interceptor<i, T_Ret, T_Args...>);
         }
       }
     });
@@ -1028,18 +1062,20 @@ public:
       "increase the maximum allowed callbacks or unsadnboxed functions "
       "pointers");
 
-    // TODO: fix
-    abort();
-    // auto func_type_idx = get_wasm2c_func_index<T_Ret, T_Args...>();
-    // uint32_t slot_number =
-    //   sandbox_info.add_wasm2c_callback(sandbox, func_type_idx, chosen_interceptor, WASM_RT_EXTERNAL_FUNCTION);
+    wasm_rt_funcref_t func_val;
+    func_val.func_type = get_wasm2c_func_index<T_Ret, T_Args...>();
+    func_val.func = chosen_interceptor;
+    func_val.module_instance = wasm2c_instance.get();
 
-    // callback_unique_keys[found_loc] = key;
-    // callbacks[found_loc] = callback;
-    // callback_slot_assignment[found_loc] = slot_number;
-    // slot_assignments[slot_number] = callback;
+    const uint32_t slot_number = new_callback_slot();
+    sandbox_callback_table->data[slot_number] = func_val;
 
-    // return static_cast<T_PointerType>(slot_number);
+    callback_unique_keys[found_loc] = key;
+    callbacks[found_loc] = callback;
+    callback_slot_assignment[found_loc] = slot_number;
+    slot_assignments[slot_number] = callback;
+
+    return static_cast<T_PointerType>(slot_number);
   }
 
   static inline std::pair<rlbox_wasm2c_sandbox*, void*>
@@ -1063,14 +1099,15 @@ public:
       RLBOX_ACQUIRE_UNIQUE_GUARD(lock, callback_mutex);
       for (; i < MAX_CALLBACKS; i++) {
         if (callback_unique_keys[i] == key) {
-          // TODO: fix
-          abort();
-          // sandbox_info.remove_wasm2c_callback(sandbox, callback_slot_assignment[i]);
-          // callback_unique_keys[i] = nullptr;
-          // callbacks[i] = nullptr;
-          // callback_slot_assignment[i] = 0;
-          // found = true;
-          // break;
+          const uint32_t slot_number = callback_slot_assignment[i];
+          wasm_rt_funcref_t func_val {0};
+          sandbox_callback_table->data[slot_number] = func_val;
+
+          callback_unique_keys[i] = nullptr;
+          callbacks[i] = nullptr;
+          callback_slot_assignment[i] = 0;
+          found = true;
+          break;
         }
       }
     }

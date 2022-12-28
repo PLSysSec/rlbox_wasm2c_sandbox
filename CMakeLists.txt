@@ -281,7 +281,7 @@ target_link_libraries(test_rlbox_glue_static Catch2::Catch2
                                       ${CMAKE_DL_LIBS}
                                       glue_lib_static
 )
-
+target_compile_definitions(test_rlbox_glue_static PUBLIC RLBOX_WASM2C_MODULE_NAME=glue_lib_wasm2c)
 add_dependencies(test_rlbox_glue_static glue_lib_so)
 
 if(UNIX AND NOT (${CMAKE_SYSTEM_NAME} MATCHES "Darwin"))
