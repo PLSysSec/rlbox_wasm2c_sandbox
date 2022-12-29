@@ -354,14 +354,16 @@ struct rlbox_wasm2c_sandbox_thread_data
 #ifdef RLBOX_EMBEDDER_PROVIDES_TLS_STATIC_VARIABLES
 
 template<typename T_Wasm2cModule>
-rlbox_wasm2c_sandbox_thread_data* get_rlbox_wasm2c_sandbox_thread_data();
+rlbox_wasm2c_sandbox_thread_data<T_Wasm2cModule>* get_rlbox_wasm2c_sandbox_thread_data();
+
 #define RLBOX_WASM2C_SANDBOX_STATIC_VARIABLES()                                                                  \
   template<typename T_Wasm2cModule>                                                                              \
   thread_local rlbox::rlbox_wasm2c_sandbox_thread_data<T_Wasm2cModule> rlbox_wasm2c_sandbox_thread_info{ 0, 0 }; \
+                                                                                                                 \
   namespace rlbox {                                                                                              \
     template<typename T_Wasm2cModule>                                                                            \
     rlbox_wasm2c_sandbox_thread_data<T_Wasm2cModule>* get_rlbox_wasm2c_sandbox_thread_data() {                   \
-      return &rlbox_wasm2c_sandbox_thread_info;                                                                  \
+      return &rlbox_wasm2c_sandbox_thread_info<T_Wasm2cModule>;                                                  \
     }                                                                                                            \
   }                                                                                                              \
   static_assert(true, "Enforce semi-colon")
@@ -438,7 +440,7 @@ private:
     typename wasm2c_detail::convert_type_to_wasm_type<T_Args>::type... params)
   {
 #ifdef RLBOX_EMBEDDER_PROVIDES_TLS_STATIC_VARIABLES
-    auto& thread_data = *get_rlbox_wasm2c_sandbox_thread_data();
+    auto& thread_data = *get_rlbox_wasm2c_sandbox_thread_data<T_Wasm2cModule>();
 #endif
     thread_data.last_callback_invoked = N;
     using T_Func = T_Ret (*)(T_Args...);
@@ -462,7 +464,7 @@ private:
     typename wasm2c_detail::convert_type_to_wasm_type<T_Args>::type... params)
   {
 #ifdef RLBOX_EMBEDDER_PROVIDES_TLS_STATIC_VARIABLES
-    auto& thread_data = *get_rlbox_wasm2c_sandbox_thread_data();
+    auto& thread_data = *get_rlbox_wasm2c_sandbox_thread_data<T_Wasm2cModule>();
 #endif
     thread_data.last_callback_invoked = N;
     using T_Func = T_Ret (*)(T_Args...);
@@ -798,7 +800,7 @@ public:
   auto impl_invoke_with_func_ptr(T_Converted* func_ptr, T_Args&&... params)
   {
 #ifdef RLBOX_EMBEDDER_PROVIDES_TLS_STATIC_VARIABLES
-    auto& thread_data = *get_rlbox_wasm2c_sandbox_thread_data();
+    auto& thread_data = *get_rlbox_wasm2c_sandbox_thread_data<T_Wasm2cModule>();
 #endif
     auto old_sandbox = thread_data.sandbox;
     thread_data.sandbox = this;
@@ -1011,7 +1013,7 @@ public:
   impl_get_executed_callback_sandbox_and_key()
   {
 #ifdef RLBOX_EMBEDDER_PROVIDES_TLS_STATIC_VARIABLES
-    auto& thread_data = *get_rlbox_wasm2c_sandbox_thread_data();
+    auto& thread_data = *get_rlbox_wasm2c_sandbox_thread_data<T_Wasm2cModule>();
 #endif
     auto sandbox = thread_data.sandbox;
     auto callback_num = thread_data.last_callback_invoked;

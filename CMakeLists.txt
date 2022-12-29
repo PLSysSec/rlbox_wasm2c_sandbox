@@ -219,23 +219,9 @@ endif()
 set(WASM2C_RUNTIME_CODE ${WASM2C_RUNTIME_SOURCE_DIR}/wasm-rt-impl.c ${CMAKE_SOURCE_DIR}/src/wasm2c_rt_minwasi.c ${CMAKE_SOURCE_DIR}/src/wasm2c_rt_os.c)
 list(FILTER WASM2C_RUNTIME_CODE EXCLUDE REGEX "${WASM2C_RUNTIME_SOURCE_DIR}/examples/.*" )
 
-add_library(glue_lib_static STATIC ${GLUE_LIB_C} ${WASM2C_RUNTIME_CODE})
-target_include_directories(glue_lib_static PRIVATE ${mod_wasm2c_SOURCE_DIR}/wasm2c
+add_library(glue_lib STATIC ${GLUE_LIB_C} ${WASM2C_RUNTIME_CODE})
+target_include_directories(glue_lib PRIVATE ${mod_wasm2c_SOURCE_DIR}/wasm2c
                                            PRIVATE ${CMAKE_SOURCE_DIR}/include)
-
-add_library(glue_lib_so SHARED ${GLUE_LIB_C} ${WASM2C_RUNTIME_CODE})
-target_include_directories(glue_lib_so PRIVATE ${mod_wasm2c_SOURCE_DIR}/wasm2c
-                                       PRIVATE ${CMAKE_SOURCE_DIR}/include)
-# Add a dependency to glue_lib_static so we don't invoke the generator for GLUE_LIB_C multiple times
-add_dependencies(glue_lib_so glue_lib_static)
-# default firefox flags
-# target_compile_options(glue_lib_so PRIVATE -Werror -Wall -Wempty-body -Wignored-qualifiers -Wpointer-arith -Wsign-compare -Wtype-limits -Wunreachable-code -Wduplicated-cond -Wno-error=maybe-uninitialized -Wno-error=deprecated-declarations -Wno-error=array-bounds -Wno-error=coverage-mismatch -Wno-error=free-nonheap-object -Wno-multistatement-macros -Wno-error=class-memaccess -Wno-error=deprecated-copy -Wno-error=unused-but-set-variable -Wformat -Wformat-overflow=2 -Wno-psabi -Wno-error=unused-function)
-
-# add_library(glue_lib_so_shadow_asan SHARED ${GLUE_LIB_C} ${WASM2C_RUNTIME_CODE})
-# target_include_directories(glue_lib_so_shadow_asan PRIVATE ${mod_wasm2c_SOURCE_DIR}/wasm2c)
-# target_compile_definitions(glue_lib_so_shadow_asan PRIVATE WASM_CHECK_SHADOW_MEMORY)
-# # Needed else both binaries invoke the custom command to generate ${GLUE_LIB_C}
-# add_dependencies(glue_lib_so_shadow_asan glue_lib_so)
 
 include(CTest)
 include(Catch)
@@ -250,46 +236,19 @@ target_include_directories(test_rlbox_glue PUBLIC ${CMAKE_SOURCE_DIR}/include
                                            PUBLIC ${rlbox_SOURCE_DIR}/code/include
                                            PUBLIC ${rlbox_SOURCE_DIR}/code/tests/rlbox_glue
                                            PUBLIC ${rlbox_SOURCE_DIR}/code/tests/rlbox_glue/lib
-                                           PUBLIC ${rlbox_SOURCE_DIR}/wasm
                                            PUBLIC ${mod_wasm2c_SOURCE_DIR}/wasm2c
+                                           PUBLIC ${GLUE_LIB_WASM_DIR}
                                            )
 target_link_libraries(test_rlbox_glue Catch2::Catch2
                                       ${CMAKE_THREAD_LIBS_INIT}
                                       ${CMAKE_DL_LIBS}
+                                      glue_lib
 )
-
-target_compile_definitions(test_rlbox_glue PUBLIC GLUE_LIB_WASM2C_PATH="$<TARGET_FILE:glue_lib_so>")
-add_dependencies(test_rlbox_glue glue_lib_so)
 
 if(UNIX AND NOT (${CMAKE_SYSTEM_NAME} MATCHES "Darwin"))
   target_link_libraries(test_rlbox_glue rt)
 endif()
 catch_discover_tests(test_rlbox_glue)
-
-####
-
-add_executable(test_rlbox_glue_static test/test_wasm2c_sandbox_glue_main.cpp
-                               test/test_wasm2c_sandbox_glue_static.cpp)
-target_include_directories(test_rlbox_glue_static PUBLIC ${CMAKE_SOURCE_DIR}/include
-                                           PUBLIC ${rlbox_SOURCE_DIR}/code/include
-                                           PUBLIC ${rlbox_SOURCE_DIR}/code/tests/rlbox_glue
-                                           PUBLIC ${rlbox_SOURCE_DIR}/code/tests/rlbox_glue/lib
-                                           PUBLIC ${rlbox_SOURCE_DIR}/wasm
-                                           PUBLIC ${mod_wasm2c_SOURCE_DIR}/wasm2c
-                                           PUBLIC ${GLUE_LIB_WASM_DIR}
-                                           )
-target_link_libraries(test_rlbox_glue_static Catch2::Catch2
-                                      ${CMAKE_THREAD_LIBS_INIT}
-                                      ${CMAKE_DL_LIBS}
-                                      glue_lib_static
-)
-target_compile_definitions(test_rlbox_glue_static PUBLIC RLBOX_WASM2C_MODULE_NAME=glue_lib_wasm2c)
-add_dependencies(test_rlbox_glue_static glue_lib_so)
-
-if(UNIX AND NOT (${CMAKE_SYSTEM_NAME} MATCHES "Darwin"))
-  target_link_libraries(test_rlbox_glue_static rt)
-endif()
-catch_discover_tests(test_rlbox_glue_static)
 
 ####
 
@@ -299,17 +258,14 @@ target_include_directories(test_rlbox_glue_smallheap PUBLIC ${CMAKE_SOURCE_DIR}/
                                            PUBLIC ${rlbox_SOURCE_DIR}/code/include
                                            PUBLIC ${rlbox_SOURCE_DIR}/code/tests/rlbox_glue
                                            PUBLIC ${rlbox_SOURCE_DIR}/code/tests/rlbox_glue/lib
-                                           PUBLIC ${rlbox_SOURCE_DIR}/wasm
                                            PUBLIC ${mod_wasm2c_SOURCE_DIR}/wasm2c
                                            PUBLIC ${GLUE_LIB_WASM_DIR}
                                            )
 target_link_libraries(test_rlbox_glue_smallheap Catch2::Catch2
                                       ${CMAKE_THREAD_LIBS_INIT}
                                       ${CMAKE_DL_LIBS}
-                                      glue_lib_static
+                                      glue_lib
 )
-
-add_dependencies(test_rlbox_glue_smallheap glue_lib_so)
 
 if(UNIX AND NOT (${CMAKE_SYSTEM_NAME} MATCHES "Darwin"))
   target_link_libraries(test_rlbox_glue_smallheap rt)
@@ -319,58 +275,30 @@ catch_discover_tests(test_rlbox_glue_smallheap)
 ####
 
 add_executable(test_rlbox_glue_embed test/test_wasm2c_sandbox_glue_main.cpp
-                                     test/test_wasm2c_sandbox_glue_embedder_vars.cpp)
+                               test/test_wasm2c_sandbox_glue_embedder_vars.cpp)
 target_include_directories(test_rlbox_glue_embed PUBLIC ${CMAKE_SOURCE_DIR}/include
-                                                 PUBLIC ${rlbox_SOURCE_DIR}/code/include
-                                                 PUBLIC ${rlbox_SOURCE_DIR}/code/tests/rlbox_glue
-                                                 PUBLIC ${rlbox_SOURCE_DIR}/code/tests/rlbox_glue/lib
-                                                 PUBLIC ${rlbox_SOURCE_DIR}/wasm
-                                                 PUBLIC ${mod_wasm2c_SOURCE_DIR}/wasm2c
-                                                 )
+                                           PUBLIC ${rlbox_SOURCE_DIR}/code/include
+                                           PUBLIC ${rlbox_SOURCE_DIR}/code/tests/rlbox_glue
+                                           PUBLIC ${rlbox_SOURCE_DIR}/code/tests/rlbox_glue/lib
+                                           PUBLIC ${mod_wasm2c_SOURCE_DIR}/wasm2c
+                                           PUBLIC ${GLUE_LIB_WASM_DIR}
+                                           )
 target_link_libraries(test_rlbox_glue_embed Catch2::Catch2
                                       ${CMAKE_THREAD_LIBS_INIT}
                                       ${CMAKE_DL_LIBS}
+                                      glue_lib
 )
-
-target_compile_definitions(test_rlbox_glue_embed PUBLIC GLUE_LIB_WASM2C_PATH="$<TARGET_FILE:glue_lib_so>")
-add_dependencies(test_rlbox_glue_embed glue_lib_so)
 
 if(UNIX AND NOT (${CMAKE_SYSTEM_NAME} MATCHES "Darwin"))
   target_link_libraries(test_rlbox_glue_embed rt)
 endif()
 catch_discover_tests(test_rlbox_glue_embed)
 
-####
-
-# add_executable(test_rlbox_glue_shadow_asan test/test_wasm2c_sandbox_glue_main.cpp
-#                                            test/test_wasm2c_sandbox_glue_shadow.cpp)
-# target_include_directories(test_rlbox_glue_shadow_asan PUBLIC ${CMAKE_SOURCE_DIR}/include
-#                                                        PUBLIC ${rlbox_SOURCE_DIR}/code/include
-#                                                        PUBLIC ${rlbox_SOURCE_DIR}/code/tests/rlbox_glue
-#                                                        PUBLIC ${rlbox_SOURCE_DIR}/code/tests/rlbox_glue/lib
-#                                                        PUBLIC ${rlbox_SOURCE_DIR}/wasm
-#                                                        PUBLIC ${mod_wasm2c_SOURCE_DIR}/wasm2c
-#                           )
-# target_link_libraries(test_rlbox_glue_shadow_asan Catch2::Catch2
-#                                                   ${CMAKE_THREAD_LIBS_INIT}
-#                                                   ${CMAKE_DL_LIBS}
-# )
-# 
-# target_compile_definitions(test_rlbox_glue_shadow_asan PUBLIC GLUE_LIB_WASM2C_PATH="$<TARGET_FILE:glue_lib_so_shadow_asan>")
-# add_dependencies(test_rlbox_glue_shadow_asan glue_lib_so_shadow_asan)
-# 
-# if(UNIX AND NOT (${CMAKE_SYSTEM_NAME} MATCHES "Darwin"))
-#   target_link_libraries(test_rlbox_glue_shadow_asan rt)
-# endif()
-# # catch_discover_tests(test_rlbox_glue_shadow_asan)
-
 # Shortcuts ###################
 
 add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} -V)
 add_dependencies(check test_rlbox_glue)
-add_dependencies(check test_rlbox_glue_static)
 add_dependencies(check test_rlbox_glue_smallheap)
 add_dependencies(check test_rlbox_glue_embed)
 # add_dependencies(check test_rlbox_glue_shadow_asan)
-add_dependencies(check glue_lib_so)
-# add_dependencies(check glue_lib_so_shadow_asan)
+
