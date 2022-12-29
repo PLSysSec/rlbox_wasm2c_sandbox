@@ -1,7 +1,6 @@
 #pragma once
 
 #include "wasm-rt.h"
-// TODO: fix
 #include "wasm2c_rt_os.h"
 #include "wasm2c_rt_minwasi.h"
 
