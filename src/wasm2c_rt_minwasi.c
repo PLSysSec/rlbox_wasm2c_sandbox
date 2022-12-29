@@ -20,7 +20,7 @@
 #include <sys/time.h>
 #endif
 
-#include "wasm-rt-minwasi.h"
+#include "wasm2c_rt_minwasi.h"
 #include "wasm-rt.h"
 
 #ifndef WASM_RT_CORE_TYPES_DEFINED

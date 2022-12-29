@@ -2,8 +2,8 @@
 
 #include "wasm-rt.h"
 // TODO: fix
-#include "../c_src/wasm-rt-os.h"
-#include "../c_src/wasm-rt-minwasi.h"
+#include "wasm2c_rt_os.h"
+#include "wasm2c_rt_minwasi.h"
 
 // Pull the helper header from the main repo for dynamic_check and scope_exit
 #include "rlbox_helpers.hpp"

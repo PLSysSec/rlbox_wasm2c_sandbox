@@ -1,9 +1,4 @@
-// Based on
-// https://web.archive.org/web/20191012035921/http://nadeausoftware.com/articles/2012/01/c_c_tip_how_use_compiler_predefined_macros_detect_operating_system#BSD
-// Check for windows (non cygwin) environment
-#if defined(_WIN32)
-
-#include "wasm-rt-os.h"
+#include "wasm2c_rt_os.h"
 #include "wasm-rt.h"
 
 #include <errno.h>
@@ -11,6 +6,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+// Based on
+// https://web.archive.org/web/20191012035921/http://nadeausoftware.com/articles/2012/01/c_c_tip_how_use_compiler_predefined_macros_detect_operating_system#BSD
+// Check for windows (non cygwin) environment
+#if defined(_WIN32)
 
 #include <windows.h>
 
@@ -152,15 +152,6 @@ int os_mmap_commit(void* curr_heap_end_pointer,
 #elif !defined(_WIN32) && (defined(__unix__) || defined(__unix) || \
                          (defined(__APPLE__) && defined(__MACH__)))
 
-#include "wasm-rt-os.h"
-#include "wasm-rt.h"
-
-#include <errno.h>
-#include <inttypes.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
 #include <sys/mman.h>
 #include <unistd.h>
 
@@ -172,7 +163,7 @@ void* os_mmap(void* hint, size_t size, int prot, int flags) {
   int map_prot = PROT_NONE;
   int map_flags = MAP_ANONYMOUS | MAP_PRIVATE;
   uint64_t request_size, page_size;
-  uint8_t* addr;
+  void* addr;
 
   page_size = (uint64_t)os_getpagesize();
   request_size = (size + page_size - 1) & ~(page_size - 1);

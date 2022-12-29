@@ -216,14 +216,16 @@ if(DEV)
   add_link_options(${RLBOX_SANITIZER_LINK_FLAGS})
 endif()
 
-set(WASM2C_RUNTIME_CODE ${WASM2C_RUNTIME_SOURCE_DIR}/wasm-rt-impl.c ${CMAKE_SOURCE_DIR}/c_src/wasm-rt-minwasi.c ${CMAKE_SOURCE_DIR}/c_src/wasm-rt-os.c)
+set(WASM2C_RUNTIME_CODE ${WASM2C_RUNTIME_SOURCE_DIR}/wasm-rt-impl.c ${CMAKE_SOURCE_DIR}/src/wasm2c_rt_minwasi.c ${CMAKE_SOURCE_DIR}/src/wasm2c_rt_os.c)
 list(FILTER WASM2C_RUNTIME_CODE EXCLUDE REGEX "${WASM2C_RUNTIME_SOURCE_DIR}/examples/.*" )
 
 add_library(glue_lib_static STATIC ${GLUE_LIB_C} ${WASM2C_RUNTIME_CODE})
-target_include_directories(glue_lib_static PRIVATE ${mod_wasm2c_SOURCE_DIR}/wasm2c)
+target_include_directories(glue_lib_static PRIVATE ${mod_wasm2c_SOURCE_DIR}/wasm2c
+                                           PRIVATE ${CMAKE_SOURCE_DIR}/include)
 
 add_library(glue_lib_so SHARED ${GLUE_LIB_C} ${WASM2C_RUNTIME_CODE})
-target_include_directories(glue_lib_so PRIVATE ${mod_wasm2c_SOURCE_DIR}/wasm2c)
+target_include_directories(glue_lib_so PRIVATE ${mod_wasm2c_SOURCE_DIR}/wasm2c
+                                       PRIVATE ${CMAKE_SOURCE_DIR}/include)
 # Add a dependency to glue_lib_static so we don't invoke the generator for GLUE_LIB_C multiple times
 add_dependencies(glue_lib_so glue_lib_static)
 # default firefox flags
