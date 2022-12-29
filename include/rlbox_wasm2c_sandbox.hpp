@@ -50,12 +50,37 @@
 #  endif
 #endif
 
+#define DEFINE_RLBOX_WASM2C_MODULE_TYPE(modname) struct rlbox_wasm2c_module_type_##modname {               \
+  using instance_t = Z_##modname##_instance_t;                                                             \
+                                                                                                           \
+  using init_module_t = void(*)();                                                                         \
+  static constexpr init_module_t init_module = &Z_##modname##_init_module;                                 \
+                                                                                                           \
+  using create_instance_t = void(*)(instance_t*, Z_env_instance_t*, Z_wasi_snapshot_preview1_instance_t*); \
+  static constexpr create_instance_t create_instance = &Z_##modname##_instantiate;                         \
+                                                                                                           \
+  using free_instance_t = void(*)(instance_t*);                                                            \
+  static constexpr free_instance_t free_instance = &Z_##modname##_free;                                    \
+                                                                                                           \
+  static constexpr const char* prefix = #modname;                                                          \
+                                                                                                           \
+  /* A function that returns the address of the func specified as a constexpr string */                    \
+  /* Unfortunately, there is no way to implement the below in C++. */                                      \
+  /* Implement this to fully support multiple static modules. */                                           \
+  /* static constexpr void* dlsym_in_w2c_module(const char* func_name) { */                                \
+  /*    return &Z_##modname##_Z_%func%; */                                                                 \
+  /* } */                                                                                                  \
+                                                                                                           \
+  static constexpr auto malloc_address = &Z_##modname##Z_malloc;                                           \
+  static constexpr auto free_address = &Z_##modname##Z_free;                                               \
+}
+
 #define RLBOX_WASM2C_STRINGIFY(x) RLBOX_WASM2C_STRINGIFY2(x)
 #define RLBOX_WASM2C_STRINGIFY2(x) #x
 
 // wasm_module_name module name used when compiling with wasm2c
 #ifndef RLBOX_WASM2C_MODULE_NAME
-#define RLBOX_WASM2C_MODULE_NAME rlbox
+#error "Expected definition for RLBOX_WASM2C_MODULE_NAME"
 #endif
 
 #define RLBOX_WASM2C_MODULE_FUNC_HELPER2(part1, part2, part3) part1##part2##part3
@@ -63,12 +88,13 @@
 #define RLBOX_WASM2C_MODULE_FUNC(name) RLBOX_WASM2C_MODULE_FUNC_HELPER(Z_,RLBOX_WASM2C_MODULE_NAME,name)
 
 namespace rlbox {
+  template<typename T_Wasm2cModule>
   class rlbox_wasm2c_sandbox;
 };
 
 extern "C" {
   struct Z_env_instance_t {
-    rlbox::rlbox_wasm2c_sandbox* sandbox;
+    wasm_rt_memory_t* sandbox_memory_info;
   };
 
   extern wasm_rt_memory_t* Z_envZ_memory(struct Z_env_instance_t* instance);
@@ -237,28 +263,39 @@ namespace wasm2c_detail {
 
 } // namespace wasm2c_detail
 
+template<typename T_Wasm2cModule>
 struct rlbox_wasm2c_sandbox_thread_data
 {
-  rlbox_wasm2c_sandbox* sandbox;
+  rlbox_wasm2c_sandbox<T_Wasm2cModule>* sandbox;
   uint32_t last_callback_invoked;
 };
 
 #ifdef RLBOX_EMBEDDER_PROVIDES_TLS_STATIC_VARIABLES
 
+template<typename T_Wasm2cModule>
 rlbox_wasm2c_sandbox_thread_data* get_rlbox_wasm2c_sandbox_thread_data();
-#  define RLBOX_WASM2C_SANDBOX_STATIC_VARIABLES()                                \
-    thread_local rlbox::rlbox_wasm2c_sandbox_thread_data                         \
-      rlbox_wasm2c_sandbox_thread_info{ 0, 0 };                                  \
-    namespace rlbox {                                                          \
-      rlbox_wasm2c_sandbox_thread_data* get_rlbox_wasm2c_sandbox_thread_data()     \
-      {                                                                        \
-        return &rlbox_wasm2c_sandbox_thread_info;                                \
-      }                                                                        \
-    }                                                                          \
-    static_assert(true, "Enforce semi-colon")
+#define RLBOX_WASM2C_SANDBOX_STATIC_VARIABLES()                                                                  \
+  template<typename T_Wasm2cModule>                                                                              \
+  thread_local rlbox::rlbox_wasm2c_sandbox_thread_data<T_Wasm2cModule> rlbox_wasm2c_sandbox_thread_info{ 0, 0 }; \
+  namespace rlbox {                                                                                              \
+    template<typename T_Wasm2cModule>                                                                            \
+    rlbox_wasm2c_sandbox_thread_data<T_Wasm2cModule>* get_rlbox_wasm2c_sandbox_thread_data() {                   \
+      return &rlbox_wasm2c_sandbox_thread_info;                                                                  \
+    }                                                                                                            \
+  }                                                                                                              \
+  static_assert(true, "Enforce semi-colon")
 
 #endif
 
+// declare the static symbol with weak linkage to keep this header only
+#if defined(_MSC_VER)
+__declspec(selectany)
+#else
+__attribute__((weak))
+#endif
+std::once_flag rlbox_wasm2c_initialized;
+
+template<typename T_Wasm2cModule>
 class rlbox_wasm2c_sandbox
 {
 public:
@@ -269,30 +306,21 @@ public:
   using T_ShortType = int16_t;
 
 private:
-#ifdef RLBOX_USE_STATIC_CALLS
-  // Static link supports a single sandbox type only
-  std::unique_ptr<RLBOX_WASM2C_MODULE_FUNC(_instance_t)> wasm2c_instance = nullptr;
-#else
-  std::unique_ptr<void> wasm2c_instance = nullptr;
-#endif
+  mutable typename T_Wasm2cModule::instance_t wasm2c_instance {0};
   Z_env_instance_t sandbox_memory_env;
   Z_wasi_snapshot_preview1_instance_t wasi_env;
+  bool instance_initialized = false;
 #if !defined(_MSC_VER)
 __attribute__((weak))
 #endif
-  static std::once_flag wasm2c_runtime_initialized;
+  static std::once_flag wasm2c_module_initialized;
 public:
   // Needs to be public to be accessible in Z_envZ_memory
   wasm_rt_memory_t sandbox_memory_info;
 private:
   wasm_rt_funcref_table_t* sandbox_callback_table = nullptr;
-#ifndef RLBOX_USE_STATIC_CALLS
-  void* library = nullptr;
-#endif
   uintptr_t heap_base;
   void* exec_env = 0;
-  void* malloc_index = 0;
-  void* free_index = 0;
   size_t return_slot_size = 0;
   T_PointerType return_slot = 0;
   mutable std::vector<T_PointerType> callback_free_list;
@@ -306,7 +334,7 @@ private:
   mutable std::map<uint32_t, const void*> slot_assignments;
 
 #ifndef RLBOX_EMBEDDER_PROVIDES_TLS_STATIC_VARIABLES
-  thread_local static inline rlbox_wasm2c_sandbox_thread_data thread_data{ 0, 0 };
+  thread_local static inline rlbox_wasm2c_sandbox_thread_data<T_Wasm2cModule> thread_data{ 0, 0 };
 #endif
 
   template<typename T_FormalRet, typename T_ActualRet>
@@ -344,7 +372,7 @@ private:
     // Callbacks are invoked through function pointers, cannot use std::forward
     // as we don't have caller context for T_Args, which means they are all
     // effectively passed by value
-    return func(thread_data.sandbox->serialize_to_sandbox<T_Args>(params)...);
+    return func(thread_data.sandbox->template serialize_to_sandbox<T_Args>(params)...);
   }
 
   template<uint32_t N, typename T_Ret, typename... T_Args>
@@ -369,7 +397,7 @@ private:
     // as we don't have caller context for T_Args, which means they are all
     // effectively passed by value
     auto ret_val =
-      func(thread_data.sandbox->serialize_to_sandbox<T_Args>(params)...);
+      func(thread_data.sandbox->template serialize_to_sandbox<T_Args>(params)...);
     // Copy the return value back
     auto ret_ptr = reinterpret_cast<T_Ret*>(
       thread_data.sandbox->template impl_get_unsandboxed_pointer<T_Ret*>(ret));
@@ -416,27 +444,6 @@ private:
     }
   }
 
-#ifndef RLBOX_USE_STATIC_CALLS
-  inline void* symbol_lookup(std::string prefixed_name) {
-    #if defined(_WIN32)
-      void* ret = (void*) GetProcAddress((HMODULE) library, prefixed_name.c_str());
-    #else
-      void* ret = dlsym(library, prefixed_name.c_str());
-    #endif
-    if (ret == nullptr) {
-      // Some lookups such as globals are not exposed as shared library symbols
-      // TODO: fix
-      abort();
-      // uint32_t* heap_index_pointer = (uint32_t*) sandbox_info.lookup_wasm2c_nonfunc_export(sandbox, prefixed_name.c_str());
-      // if (heap_index_pointer != nullptr) {
-      //   uint32_t heap_index = *heap_index_pointer;
-      //   ret = &(reinterpret_cast<char*>(heap_base)[heap_index]);
-      // }
-    }
-    return ret;
-  }
-#endif
-
   // function takes a 32-bit value and returns the next power of 2
   // return is a 64-bit value as large 32-bit values will return 2^32
   static inline uint64_t next_power_of_two(uint32_t value) {
@@ -476,16 +483,6 @@ public:
 
 protected:
 
-#ifndef RLBOX_USE_STATIC_CALLS
-  void* impl_lookup_symbol(const char* func_name)
-  {
-    std::string prefixed_name = "w2c_";
-    prefixed_name += func_name;
-    void* ret = symbol_lookup(prefixed_name);
-    return ret;
-  }
-#else
-
   #define rlbox_wasm2c_sandbox_lookup_symbol(func_name)                            \
   reinterpret_cast<void*>(&RLBOX_WASM2C_MODULE_FUNC(Z_##func_name)) /* NOLINT */
 
@@ -502,7 +499,6 @@ protected:
       "to their code, to ensure that static calls are handled correctly.");
     return nullptr;
   }
-#endif
 
 private:
 
@@ -594,62 +590,21 @@ public:
   /**
    * @brief creates the Wasm sandbox from the given shared library
    *
-   * @param wasm2c_module_path path to shared library compiled with wasm2c. This param is not specified if you are creating a statically linked sandbox.
    * @param infallible if set to true, the sandbox aborts on failure. If false, the sandbox returns creation status as a return value
    * @param override_max_heap_size optional override of the maximum size of the wasm heap allowed for this sandbox instance. When the value is zero, platform defaults are used. Non-zero values are rounded to max(64k, next power of 2).
-   * @return true when sandbox is successfully created
-   * @return false when infallible if set to false and sandbox was not successfully created. If infallible is set to true, this function will never return false.
+   * @return true when sandbox is successfully created. false when infallible is set to false and sandbox was not successfully created. If infallible is set to true, this function will never return false.
    */
   inline bool impl_create_sandbox(
-#ifndef RLBOX_USE_STATIC_CALLS
-    path_buf wasm2c_module_path,
-#endif
-    bool infallible = true, uint64_t override_max_heap_size = 0, const char* wasm_module_name = RLBOX_WASM2C_STRINGIFY(RLBOX_WASM2C_MODULE_NAME))
+    bool infallible = true, uint64_t override_max_heap_size = 0)
   {
-    FALLIBLE_DYNAMIC_CHECK(infallible, wasm2c_instance == nullptr, "Sandbox already initialized");
+    FALLIBLE_DYNAMIC_CHECK(infallible, instance_initialized == false, "Sandbox already initialized");
 
-#ifdef RLBOX_USE_STATIC_CALLS
-    bool dynamic_module_same_as_static = strcmp(wasm_module_name, RLBOX_WASM2C_STRINGIFY(RLBOX_WASM2C_MODULE_NAME)) == 0;
-    FALLIBLE_DYNAMIC_CHECK(infallible, dynamic_module_same_as_static, "Cannot dynamically pick a wasm module when using RLBOX_WASM2C with static calls");
-#else
-    #if defined(_WIN32)
-    library = (void*) LoadLibraryW(wasm2c_module_path);
-    #else
-    library = dlopen(wasm2c_module_path, RTLD_LAZY);
-    #endif
-
-    if (!library) {
-      std::string error_msg = "Could not load wasm2c dynamic library: ";
-      #if defined(_WIN32)
-        DWORD errorMessageID  = GetLastError();
-        if (errorMessageID != 0) {
-          LPSTR messageBuffer = nullptr;
-          //The api creates the buffer that holds the message
-          size_t size = FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-                                      NULL, errorMessageID, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPSTR)&messageBuffer, 0, NULL);
-          //Copy the error message into a std::string.
-          std::string message(messageBuffer, size);
-          error_msg += message;
-          LocalFree(messageBuffer);
-        }
-      #else
-        error_msg += dlerror();
-      #endif
-      FALLIBLE_DYNAMIC_CHECK(infallible, false, error_msg.c_str());
-    }
-#endif
-
-    std::call_once(wasm2c_runtime_initialized, [&](){
+    std::call_once(rlbox_wasm2c_initialized, [&](){
       wasm_rt_init();
       minwasi_init();
-#ifdef RLBOX_USE_STATIC_CALLS
-      RLBOX_WASM2C_MODULE_FUNC(_init_module)();
-#else
-      std::string mod_init_funcname = RLBOX_WASM2C_STRINGIFY(RLBOX_WASM2C_MODULE_FUNC(_init_module));
-      auto mod_init_func = reinterpret_cast<void(*)()>(symbol_lookup(mod_init_funcname));
-      FALLIBLE_DYNAMIC_CHECK(infallible, mod_init_func != nullptr, "could not find wasm2c module: " RLBOX_WASM2C_STRINGIFY(RLBOX_WASM2C_MODULE_NAME));
-      mod_init_func();
-#endif
+    });
+    std::call_once(wasm2c_module_initialized, [&](){
+      T_Wasm2cModule::init_module();
     });
 
     override_max_heap_size = rlbox_wasm2c_get_adjusted_heap_size(override_max_heap_size);
@@ -659,17 +614,9 @@ public:
     sandbox_memory_info = create_wasm2c_memory(override_max_wasm_pages);
     FALLIBLE_DYNAMIC_CHECK(infallible, sandbox_memory_info.data != nullptr, "Could not allocate a heap for the wasm2c sandbox");
 
-    wasm2c_instance = std::make_unique<RLBOX_WASM2C_MODULE_FUNC(_instance_t)>();
-    sandbox_memory_env.sandbox = this;
+    sandbox_memory_env.sandbox_memory_info = &sandbox_memory_info;
     wasi_env.instance_memory = &sandbox_memory_info;
-#ifdef RLBOX_USE_STATIC_CALLS
-      RLBOX_WASM2C_MODULE_FUNC(_instantiate)(wasm2c_instance.get(), &sandbox_memory_env, &wasi_env);
-#else
-      std::string mod_inst_funcname = RLBOX_WASM2C_STRINGIFY(RLBOX_WASM2C_MODULE_FUNC(_instantiate));
-      auto mod_inst_func = reinterpret_cast<void(*)(void*, Z_env_instance_t*, Z_wasi_snapshot_preview1_instance_t*)>(symbol_lookup(mod_inst_funcname));
-      FALLIBLE_DYNAMIC_CHECK(infallible, mod_inst_func != nullptr, "could not find wasm2c module: " RLBOX_WASM2C_MODULE_NAME);
-      mod_inst_func(wasm2c_instance.get(), &sandbox_memory_env, &wasi_en);
-#endif
+    T_Wasm2cModule::create_instance(&wasm2c_instance, &sandbox_memory_env, &wasi_env);
 
     heap_base = reinterpret_cast<uintptr_t>(impl_get_memory_location());
 
@@ -683,17 +630,9 @@ public:
                             "Sandbox heap not aligned to 4GB");
     }
 
-    exec_env = wasm2c_instance.get();
-#ifdef RLBOX_USE_STATIC_CALLS
-    malloc_index = rlbox_wasm2c_sandbox_lookup_symbol(malloc);
-    free_index = rlbox_wasm2c_sandbox_lookup_symbol(free);
-    sandbox_callback_table = &(wasm2c_instance->w2c_T0);
-#else
-    malloc_index = impl_lookup_symbol("malloc");
-    free_index = impl_lookup_symbol("free");
-    // TODO: fix
-    abort();
-#endif
+    exec_env = &wasm2c_instance;
+    sandbox_callback_table = &(wasm2c_instance.w2c_T0);
+    instance_initialized = true;
 
     return true;
   }
@@ -706,30 +645,12 @@ public:
       impl_free_in_sandbox(return_slot);
     }
 
-    if (wasm2c_instance != nullptr) {
-#ifdef RLBOX_USE_STATIC_CALLS
-      RLBOX_WASM2C_MODULE_FUNC(_free)(wasm2c_instance.get());
-#else
-      std::string mod_free_funcname = RLBOX_WASM2C_STRINGIFY(RLBOX_WASM2C_MODULE_FUNC(_free));
-      auto mod_free_func = reinterpret_cast<void(*)(void*)>(symbol_lookup(mod_free_funcname));
-      FALLIBLE_DYNAMIC_CHECK(infallible, mod_free_func != nullptr, "could not find wasm2c module: " RLBOX_WASM2C_MODULE_NAME);
-      mod_free_func(wasm2c_instance.get());
-#endif
-      wasm2c_instance = nullptr;
+    if (instance_initialized) {
+      instance_initialized = false;
+      T_Wasm2cModule::free_instance(&wasm2c_instance);
     }
 
     destroy_wasm2c_memory(&sandbox_memory_info);
-
-#ifndef RLBOX_USE_STATIC_CALLS
-    if (library != nullptr) {
-      #if defined(_WIN32)
-        FreeLibrary((HMODULE) library);
-      #else
-        dlclose(library);
-      #endif
-      library = nullptr;
-    }
-#endif
   }
 
   template<typename T>
@@ -765,7 +686,7 @@ public:
         wasm_rt_funcref_t func_val;
         func_val.func_type = get_wasm2c_func_index(static_cast<T>(nullptr));
         func_val.func = reinterpret_cast<wasm_rt_function_ptr_t>(const_cast<void*>(p));
-        func_val.module_instance = wasm2c_instance.get();
+        func_val.module_instance = &wasm2c_instance;
 
         sandbox_callback_table->data[slot_number] = func_val;
         internal_callbacks[p] = slot_number;
@@ -785,19 +706,19 @@ public:
   static inline void* impl_get_unsandboxed_pointer_no_ctx(
     T_PointerType p,
     const void* example_unsandboxed_ptr,
-    rlbox_wasm2c_sandbox* (*expensive_sandbox_finder)(
+    rlbox_wasm2c_sandbox<T_Wasm2cModule>* (*expensive_sandbox_finder)(
       const void* example_unsandboxed_ptr))
   {
     // on 32-bit platforms we don't assume the heap is aligned
     if constexpr (sizeof(uintptr_t) == sizeof(uint32_t)) {
       auto sandbox = expensive_sandbox_finder(example_unsandboxed_ptr);
-      return sandbox->impl_get_unsandboxed_pointer<T>(p);
+      return sandbox->template impl_get_unsandboxed_pointer<T>(p);
     } else {
       if constexpr (std::is_function_v<std::remove_pointer_t<T>>) {
         // swizzling function pointers needs access to the function pointer tables
         // and thus cannot be done without context
         auto sandbox = expensive_sandbox_finder(example_unsandboxed_ptr);
-        return sandbox->impl_get_unsandboxed_pointer<T>(p);
+        return sandbox->template impl_get_unsandboxed_pointer<T>(p);
       } else {
         // grab the memory base from the example_unsandboxed_ptr
         uintptr_t heap_base_mask =
@@ -815,19 +736,19 @@ public:
   static inline T_PointerType impl_get_sandboxed_pointer_no_ctx(
     const void* p,
     const void* example_unsandboxed_ptr,
-    rlbox_wasm2c_sandbox* (*expensive_sandbox_finder)(
+    rlbox_wasm2c_sandbox<T_Wasm2cModule>* (*expensive_sandbox_finder)(
       const void* example_unsandboxed_ptr))
   {
     // on 32-bit platforms we don't assume the heap is aligned
     if constexpr (sizeof(uintptr_t) == sizeof(uint32_t)) {
       auto sandbox = expensive_sandbox_finder(example_unsandboxed_ptr);
-      return sandbox->impl_get_sandboxed_pointer<T>(p);
+      return sandbox->template impl_get_sandboxed_pointer<T>(p);
     } else {
       if constexpr (std::is_function_v<std::remove_pointer_t<T>>) {
         // swizzling function pointers needs access to the function pointer tables
         // and thus cannot be done without context
         auto sandbox = expensive_sandbox_finder(example_unsandboxed_ptr);
-        return sandbox->impl_get_sandboxed_pointer<T>(p);
+        return sandbox->template impl_get_sandboxed_pointer<T>(p);
       } else {
         // Just clear the memory base to leave the offset
         RLBOX_WASM2C_UNUSED(example_unsandboxed_ptr);
@@ -978,7 +899,7 @@ public:
     using T_Func = void*(size_t);
     using T_Converted = T_PointerType(uint32_t);
     T_PointerType ret = impl_invoke_with_func_ptr<T_Func, T_Converted>(
-      reinterpret_cast<T_Converted*>(malloc_index),
+      reinterpret_cast<T_Converted*>(T_Wasm2cModule::malloc_address),
       static_cast<uint32_t>(size));
     return ret;
   }
@@ -988,7 +909,7 @@ public:
     using T_Func = void(void*);
     using T_Converted = void(T_PointerType);
     impl_invoke_with_func_ptr<T_Func, T_Converted>(
-      reinterpret_cast<T_Converted*>(free_index), p);
+      reinterpret_cast<T_Converted*>(T_Wasm2cModule::free_address), p);
   }
 
 private:
@@ -1065,7 +986,7 @@ public:
     wasm_rt_funcref_t func_val;
     func_val.func_type = get_wasm2c_func_index<T_Ret, T_Args...>();
     func_val.func = chosen_interceptor;
-    func_val.module_instance = wasm2c_instance.get();
+    func_val.module_instance = &wasm2c_instance;
 
     const uint32_t slot_number = new_callback_slot();
     sandbox_callback_table->data[slot_number] = func_val;
@@ -1078,7 +999,7 @@ public:
     return static_cast<T_PointerType>(slot_number);
   }
 
-  static inline std::pair<rlbox_wasm2c_sandbox*, void*>
+  static inline std::pair<rlbox_wasm2c_sandbox<T_Wasm2cModule>*, void*>
   impl_get_executed_callback_sandbox_and_key()
   {
 #ifdef RLBOX_EMBEDDER_PROVIDES_TLS_STATIC_VARIABLES
@@ -1120,17 +1041,18 @@ public:
 };
 
 // declare the static symbol with weak linkage to keep this header only
+template<typename T_Wasm2cModule>
 #if defined(_MSC_VER)
 __declspec(selectany)
 #else
 __attribute__((weak))
 #endif
-std::once_flag rlbox_wasm2c_sandbox::wasm2c_runtime_initialized;
+std::once_flag rlbox_wasm2c_sandbox<T_Wasm2cModule>::wasm2c_module_initialized;
 
 } // namespace rlbox
 
 extern "C" {
 wasm_rt_memory_t* Z_envZ_memory(struct Z_env_instance_t* instance) {
-  return &(instance->sandbox->sandbox_memory_info);
+  return instance->sandbox_memory_info;
 }
 }

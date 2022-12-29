@@ -7,8 +7,11 @@
 
 // NOLINTNEXTLINE
 #define TestName "rlbox_wasm2c_sandbox static"
+
+DEFINE_RLBOX_WASM2C_MODULE_TYPE(glue_lib_wasm2c);
+
 // NOLINTNEXTLINE
-#define TestType rlbox::rlbox_wasm2c_sandbox
+#define TestType rlbox::rlbox_wasm2c_sandbox<rlbox_wasm2c_module_type_glue_lib_wasm2c>
 
 // NOLINTNEXTLINE
 #if defined(_WIN32)
