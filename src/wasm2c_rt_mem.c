@@ -1,4 +1,4 @@
-#include "wasm2c_rt_os.h"
+#include "wasm2c_rt_mem.h"
 #include "wasm-rt.h"
 
 #include <errno.h>
@@ -7,6 +7,117 @@
 #include <stdlib.h>
 #include <string.h>
 
+enum {
+  MMAP_PROT_NONE = 0,
+  MMAP_PROT_READ = 1,
+  MMAP_PROT_WRITE = 2,
+  MMAP_PROT_EXEC = 4
+};
+
+/* Memory map flags */
+enum {
+  MMAP_MAP_NONE = 0,
+  /* Put the mapping into 0 to 2 G, supported only on x86_64 */
+  MMAP_MAP_32BIT = 1,
+  /* Don't interpret addr as a hint: place the mapping at exactly
+     that address. */
+  MMAP_MAP_FIXED = 2
+};
+
+static size_t os_getpagesize();
+// Try allocating Memory space.
+// Returns pointer to allocated region on success, 0 on failure.
+static void* os_mmap(void* hint, size_t size, int prot, int flags);
+static void os_munmap(void* addr, size_t size);
+// Set the permissions of the memory region.
+// Returns 0 on success, non zero on failure.
+static int os_mprotect(void* addr, size_t size, int prot);
+// Like mmap but returns an aligned region
+static void* os_mmap_aligned(void* addr,
+                      size_t requested_length,
+                      int prot,
+                      int flags,
+                      size_t alignment,
+                      size_t alignment_offset);
+
+// Commits and sets the permissions on an already allocated memory region
+// Returns 0 on success, non zero on failure.
+static int os_mmap_commit(void* curr_heap_end_pointer, size_t expanded_size, int prot);
+
+wasm_rt_memory_t* Z_envZ_memory(struct Z_env_instance_t* instance){
+  return instance->sandbox_memory_info;
+}
+
+#define WASM_PAGE_SIZE 65536
+#define RLBOX_FOUR_GIG 0x100000000ull
+
+#if UINTPTR_MAX == 0xffffffffffffffff
+// Guard page of 4GiB
+#define WASM_HEAP_GUARD_PAGE_SIZE 0x100000000ull
+// Heap aligned to 4GB
+#define WASM_HEAP_ALIGNMENT 0x100000000ull
+// By default max heap is 4GB
+#define WASM_HEAP_DEFAULT_MAX_PAGES 65536
+#elif UINTPTR_MAX == 0xffffffff
+// No guard pages
+#define WASM_HEAP_GUARD_PAGE_SIZE 0
+// Unaligned heap
+#define WASM_HEAP_ALIGNMENT 0
+// Default max heap is 16MB
+#define WASM_HEAP_DEFAULT_MAX_PAGES 256
+#else
+#error "Unknown pointer size"
+#endif
+
+static uint64_t compute_heap_reserve_space(uint32_t chosen_max_pages) {
+  const uint64_t heap_reserve_size =
+      ((uint64_t)chosen_max_pages) * WASM_PAGE_SIZE + WASM_HEAP_GUARD_PAGE_SIZE;
+  return heap_reserve_size;
+}
+
+wasm_rt_memory_t create_wasm2c_memory(uint32_t initial_pages, uint64_t override_max_wasm_pages) {
+  const uint32_t byte_length = initial_pages * WASM_PAGE_SIZE;
+  const uint64_t chosen_max_pages = override_max_wasm_pages? override_max_wasm_pages : WASM_HEAP_DEFAULT_MAX_PAGES;
+  const uint64_t heap_reserve_size = compute_heap_reserve_space(chosen_max_pages);
+
+  uint8_t* data = 0;
+  const uint64_t retries = 10;
+  for (uint64_t i = 0; i < retries; i++) {
+    data = (uint8_t*) os_mmap_aligned(0, heap_reserve_size, MMAP_PROT_NONE, MMAP_MAP_NONE,
+                            WASM_HEAP_ALIGNMENT, 0 /* alignment_offset */);
+    if (data) {
+      int ret = os_mmap_commit(data, byte_length, MMAP_PROT_READ | MMAP_PROT_WRITE);
+      if (ret != 0) {
+        // failed to set permissions
+        os_munmap(data, heap_reserve_size);
+        data = 0;
+      }
+      break;
+    }
+  }
+
+  wasm_rt_memory_t ret;
+  ret.data = data;
+  ret.max_pages = chosen_max_pages;
+  ret.pages = initial_pages;
+  ret.size = byte_length;
+  return ret;
+}
+
+void destroy_wasm2c_memory(wasm_rt_memory_t* memory) {
+  if (memory->data != 0) {
+    const uint64_t heap_reserve_size = compute_heap_reserve_space(memory->max_pages);
+    os_munmap(memory->data, heap_reserve_size);
+    memory->data = 0;
+  }
+}
+
+#undef WASM_HEAP_DEFAULT_MAX_PAGES
+#undef WASM_HEAP_ALIGNMENT
+#undef WASM_HEAP_GUARD_PAGE_SIZE
+#undef RLBOX_FOUR_GIG
+#undef WASM_PAGE_SIZE
+
 // Based on
 // https://web.archive.org/web/20191012035921/http://nadeausoftware.com/articles/2012/01/c_c_tip_how_use_compiler_predefined_macros_detect_operating_system#BSD
 // Check for windows (non cygwin) environment
@@ -14,7 +125,7 @@
 
 #include <windows.h>
 
-size_t os_getpagesize() {
+static size_t os_getpagesize() {
   SYSTEM_INFO S;
   GetNativeSystemInfo(&S);
   return S.dwPageSize;
@@ -53,12 +164,12 @@ static void* win_mmap(void* hint,
   return addr;
 }
 
-void* os_mmap(void* hint, size_t size, int prot, int flags) {
+static void* os_mmap(void* hint, size_t size, int prot, int flags) {
   DWORD alloc_flag = MEM_RESERVE | MEM_COMMIT;
   return win_mmap(hint, size, prot, flags, alloc_flag);
 }
 
-void os_munmap(void* addr, size_t size) {
+static void os_munmap(void* addr, size_t size) {
   DWORD alloc_flag = MEM_RELEASE;
   if (addr) {
     if (VirtualFree(addr, 0, alloc_flag) == 0) {
@@ -71,7 +182,7 @@ void os_munmap(void* addr, size_t size) {
   }
 }
 
-int os_mprotect(void* addr, size_t size, int prot) {
+static int os_mprotect(void* addr, size_t size, int prot) {
   DWORD flProtect = PAGE_NOACCESS;
 
   if (!addr)
@@ -92,7 +203,7 @@ int os_mprotect(void* addr, size_t size, int prot) {
   return succeeded ? 0 : -1;
 }
 
-void* os_mmap_aligned(void* addr,
+static void* os_mmap_aligned(void* addr,
                       size_t requested_length,
                       int prot,
                       int flags,
@@ -140,7 +251,7 @@ void* os_mmap_aligned(void* addr,
   return (void*)aligned;
 }
 
-int os_mmap_commit(void* curr_heap_end_pointer,
+static int os_mmap_commit(void* curr_heap_end_pointer,
                    size_t expanded_size,
                    int prot) {
   uintptr_t addr = (uintptr_t)win_mmap(curr_heap_end_pointer, expanded_size,
@@ -155,11 +266,11 @@ int os_mmap_commit(void* curr_heap_end_pointer,
 #include <sys/mman.h>
 #include <unistd.h>
 
-size_t os_getpagesize() {
+static size_t os_getpagesize() {
   return getpagesize();
 }
 
-void* os_mmap(void* hint, size_t size, int prot, int flags) {
+static void* os_mmap(void* hint, size_t size, int prot, int flags) {
   int map_prot = PROT_NONE;
   int map_flags = MAP_ANONYMOUS | MAP_PRIVATE;
   uint64_t request_size, page_size;
@@ -203,7 +314,7 @@ void* os_mmap(void* hint, size_t size, int prot, int flags) {
   return addr;
 }
 
-void os_munmap(void* addr, size_t size) {
+static void os_munmap(void* addr, size_t size) {
   uint64_t page_size = (uint64_t)os_getpagesize();
   uint64_t request_size = (size + page_size - 1) & ~(page_size - 1);
 
@@ -215,7 +326,7 @@ void os_munmap(void* addr, size_t size) {
   }
 }
 
-int os_mprotect(void* addr, size_t size, int prot) {
+static int os_mprotect(void* addr, size_t size, int prot) {
   int map_prot = PROT_NONE;
   uint64_t page_size = (uint64_t)os_getpagesize();
   uint64_t request_size = (size + page_size - 1) & ~(page_size - 1);
@@ -235,7 +346,7 @@ int os_mprotect(void* addr, size_t size, int prot) {
   return mprotect(addr, request_size, map_prot);
 }
 
-void* os_mmap_aligned(void* addr,
+static void* os_mmap_aligned(void* addr,
                       size_t requested_length,
                       int prot,
                       int flags,
@@ -288,7 +399,7 @@ void* os_mmap_aligned(void* addr,
   return (void*)aligned;
 }
 
-int os_mmap_commit(void* curr_heap_end_pointer,
+static int os_mmap_commit(void* curr_heap_end_pointer,
                    size_t expanded_size,
                    int prot) {
   return os_mprotect(curr_heap_end_pointer, expanded_size, prot);

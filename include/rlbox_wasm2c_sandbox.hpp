@@ -1,7 +1,7 @@
 #pragma once
 
 #include "wasm-rt.h"
-#include "wasm2c_rt_os.h"
+#include "wasm2c_rt_mem.h"
 #include "wasm2c_rt_minwasi.h"
 
 // Pull the helper header from the main repo for dynamic_check and scope_exit
@@ -91,94 +91,7 @@
 #define RLBOX_WASM2C_MODULE_FUNC_HELPER(part1, part2, part3) RLBOX_WASM2C_MODULE_FUNC_HELPER2(part1, part2, part3)
 #define RLBOX_WASM2C_MODULE_FUNC(name) RLBOX_WASM2C_MODULE_FUNC_HELPER(Z_,RLBOX_WASM2C_MODULE_NAME,name)
 
-extern "C" {
-  struct Z_env_instance_t {
-    wasm_rt_memory_t* sandbox_memory_info;
-  };
-
-  wasm_rt_memory_t* Z_envZ_memory(struct Z_env_instance_t* instance){
-    return instance->sandbox_memory_info;
-  }
-}
-
 namespace rlbox {
-
-class rlbox_wasm2c_memory_manager {
-public:
-
-#define WASM_PAGE_SIZE 65536
-#define RLBOX_FOUR_GIG 0x100000000ull
-
-#if UINTPTR_MAX == 0xffffffffffffffff
-// Guard page of 4GiB
-#define WASM_HEAP_GUARD_PAGE_SIZE 0x100000000ull
-// Heap aligned to 4GB
-#define WASM_HEAP_ALIGNMENT 0x100000000ull
-// By default max heap is 4GB
-#define WASM_HEAP_DEFAULT_MAX_PAGES 65536
-#elif UINTPTR_MAX == 0xffffffff
-// No guard pages
-#define WASM_HEAP_GUARD_PAGE_SIZE 0
-// Unaligned heap
-#define WASM_HEAP_ALIGNMENT 0
-// Default max heap is 16MB
-#define WASM_HEAP_DEFAULT_MAX_PAGES 256
-#else
-#error "Unknown pointer size"
-#endif
-
-private:
-  static uint64_t compute_heap_reserve_space(uint32_t chosen_max_pages) {
-    const uint64_t heap_reserve_size =
-        ((uint64_t)chosen_max_pages) * WASM_PAGE_SIZE + WASM_HEAP_GUARD_PAGE_SIZE;
-    return heap_reserve_size;
-  }
-
-public:
-  static wasm_rt_memory_t create_wasm2c_memory(uint32_t initial_pages, uint64_t override_max_wasm_pages) {
-    const uint32_t byte_length = initial_pages * WASM_PAGE_SIZE;
-    const uint64_t chosen_max_pages = override_max_wasm_pages? override_max_wasm_pages : WASM_HEAP_DEFAULT_MAX_PAGES;
-    const uint64_t heap_reserve_size = compute_heap_reserve_space(chosen_max_pages);
-
-    uint8_t* data = nullptr;
-    const uint64_t retries = 10;
-    for (uint64_t i = 0; i < retries; i++) {
-      data = (uint8_t*) os_mmap_aligned(nullptr, heap_reserve_size, MMAP_PROT_NONE, MMAP_MAP_NONE,
-                             WASM_HEAP_ALIGNMENT, 0 /* alignment_offset */);
-      if (data) {
-        int ret = os_mmap_commit(data, byte_length, MMAP_PROT_READ | MMAP_PROT_WRITE);
-        if (ret != 0) {
-          // failed to set permissions
-          os_munmap(data, heap_reserve_size);
-          data = nullptr;
-        }
-        break;
-      }
-    }
-
-    wasm_rt_memory_t ret;
-    ret.data = data;
-    ret.max_pages = chosen_max_pages;
-    ret.pages = initial_pages;
-    ret.size = byte_length;
-    return ret;
-  }
-
-  static void destroy_wasm2c_memory(wasm_rt_memory_t* memory) {
-    if (memory->data != nullptr) {
-      const uint64_t heap_reserve_size = compute_heap_reserve_space(memory->max_pages);
-      os_munmap(memory->data, heap_reserve_size);
-      memory->data = nullptr;
-    }
-  }
-
-#undef WASM_HEAP_DEFAULT_MAX_PAGES
-#undef WASM_HEAP_ALIGNMENT
-#undef WASM_HEAP_GUARD_PAGE_SIZE
-#undef RLBOX_FOUR_GIG
-#undef WASM_PAGE_SIZE
-
-};
 
 template<typename T_Wasm2cModule>
 class rlbox_wasm2c_sandbox;
@@ -622,7 +535,7 @@ public:
     const uint64_t override_max_wasm_pages = rlbox_wasm2c_get_heap_page_count(override_max_heap_size);
     FALLIBLE_DYNAMIC_CHECK(infallible, override_max_wasm_pages <= 65536, "Wasm allows a max heap size of 4GB");
 
-    sandbox_memory_info = rlbox_wasm2c_memory_manager::create_wasm2c_memory(*T_Wasm2cModule::initial_memory_pages, override_max_wasm_pages);
+    sandbox_memory_info = create_wasm2c_memory(*T_Wasm2cModule::initial_memory_pages, override_max_wasm_pages);
     FALLIBLE_DYNAMIC_CHECK(infallible, sandbox_memory_info.data != nullptr, "Could not allocate a heap for the wasm2c sandbox");
 
     sandbox_memory_env.sandbox_memory_info = &sandbox_memory_info;
@@ -660,7 +573,7 @@ public:
       T_Wasm2cModule::free_instance(&wasm2c_instance);
     }
 
-    rlbox_wasm2c_memory_manager::destroy_wasm2c_memory(&sandbox_memory_info);
+    destroy_wasm2c_memory(&sandbox_memory_info);
   }
 
   template<typename T>
