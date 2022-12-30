@@ -130,7 +130,7 @@ if(NOT mod_wasm2c_POPULATED)
   FetchContent_Populate(mod_wasm2c)
 endif()
 
-# set (mod_wasm2c_SOURCE_DIR "/home/shr/Code/LibrarySandboxing/wasm2c_sandbox_compiler/")
+# set (mod_wasm2c_SOURCE_DIR "/home/shr/Code/LibrarySandboxing/wabt/")
 # set (mod_wasm2c_SOURCE_DIR "C:/Users/shr/Code/wasm2c_sandbox_compiler/")
 
 if(DEV)

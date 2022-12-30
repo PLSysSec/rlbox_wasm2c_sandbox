@@ -62,6 +62,8 @@
   using free_instance_t = void(*)(instance_t*);                                                            \
   static constexpr free_instance_t free_instance = &Z_##modname##_free;                                    \
                                                                                                            \
+  static constexpr const uint32_t* initial_memory_pages = &Z_##modname##_min_Z_envZ_memory;                \
+                                                                                                           \
   static constexpr const char* prefix = #modname;                                                          \
                                                                                                            \
   /* A function that returns the address of the func specified as a constexpr string */                    \
@@ -94,7 +96,9 @@ extern "C" {
     wasm_rt_memory_t* sandbox_memory_info;
   };
 
-  extern wasm_rt_memory_t* Z_envZ_memory(struct Z_env_instance_t* instance);
+  wasm_rt_memory_t* Z_envZ_memory(struct Z_env_instance_t* instance){
+    return instance->sandbox_memory_info;
+  }
 }
 
 namespace rlbox {
@@ -131,10 +135,7 @@ private:
   }
 
 public:
-  static wasm_rt_memory_t create_wasm2c_memory(uint64_t override_max_wasm_pages) {
-    // TODO: fix
-    // Arbitrarily pick 32 as starting pages (2MB)
-    const uint32_t initial_pages = 32;
+  static wasm_rt_memory_t create_wasm2c_memory(uint32_t initial_pages, uint64_t override_max_wasm_pages) {
     const uint32_t byte_length = initial_pages * WASM_PAGE_SIZE;
     const uint64_t chosen_max_pages = override_max_wasm_pages? override_max_wasm_pages : WASM_HEAP_DEFAULT_MAX_PAGES;
     const uint64_t heap_reserve_size = compute_heap_reserve_space(chosen_max_pages);
@@ -621,7 +622,7 @@ public:
     const uint64_t override_max_wasm_pages = rlbox_wasm2c_get_heap_page_count(override_max_heap_size);
     FALLIBLE_DYNAMIC_CHECK(infallible, override_max_wasm_pages <= 65536, "Wasm allows a max heap size of 4GB");
 
-    sandbox_memory_info = rlbox_wasm2c_memory_manager::create_wasm2c_memory(override_max_wasm_pages);
+    sandbox_memory_info = rlbox_wasm2c_memory_manager::create_wasm2c_memory(*T_Wasm2cModule::initial_memory_pages, override_max_wasm_pages);
     FALLIBLE_DYNAMIC_CHECK(infallible, sandbox_memory_info.data != nullptr, "Could not allocate a heap for the wasm2c sandbox");
 
     sandbox_memory_env.sandbox_memory_info = &sandbox_memory_info;
@@ -1059,9 +1060,3 @@ __attribute__((weak))
 std::once_flag rlbox_wasm2c_sandbox<T_Wasm2cModule>::wasm2c_module_initialized;
 
 } // namespace rlbox
-
-extern "C" {
-wasm_rt_memory_t* Z_envZ_memory(struct Z_env_instance_t* instance) {
-  return instance->sandbox_memory_info;
-}
-}
