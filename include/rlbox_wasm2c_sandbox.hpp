@@ -51,18 +51,18 @@
 #endif
 
 #define DEFINE_RLBOX_WASM2C_MODULE_TYPE(modname) struct rlbox_wasm2c_module_type_##modname {               \
-  using instance_t = Z_##modname##_instance_t;                                                             \
+  using instance_t = w2c_##modname;                                                                        \
                                                                                                            \
-  using init_module_t = void(*)();                                                                         \
-  static constexpr init_module_t init_module = &Z_##modname##_init_module;                                 \
-                                                                                                           \
-  using create_instance_t = void(*)(instance_t*, Z_env_instance_t*, Z_wasi_snapshot_preview1_instance_t*); \
-  static constexpr create_instance_t create_instance = &Z_##modname##_instantiate;                         \
+  using create_instance_t = void(*)(instance_t*, struct w2c_env*, struct w2c_wasi__snapshot__preview1*);   \
+  static constexpr create_instance_t create_instance = &wasm2c_##modname##_instantiate;                    \
                                                                                                            \
   using free_instance_t = void(*)(instance_t*);                                                            \
-  static constexpr free_instance_t free_instance = &Z_##modname##_free;                                    \
+  static constexpr free_instance_t free_instance = &wasm2c_##modname##_free;                               \
                                                                                                            \
-  static constexpr const uint32_t* initial_memory_pages = &Z_##modname##_min_Z_envZ_memory;                \
+  using get_func_type_t = wasm_rt_func_type_t(*)(uint32_t, uint32_t, ...);                                 \
+  static constexpr get_func_type_t get_func_type = &wasm2c_##modname##_get_func_type;                      \
+                                                                                                           \
+  static constexpr const uint32_t* initial_memory_pages = &wasm2c_##modname##_min_env_memory;              \
                                                                                                            \
   static constexpr const char* prefix = #modname;                                                          \
                                                                                                            \
@@ -70,11 +70,11 @@
   /* Unfortunately, there is no way to implement the below in C++. */                                      \
   /* Implement this to fully support multiple static modules. */                                           \
   /* static constexpr void* dlsym_in_w2c_module(const char* func_name) { */                                \
-  /*    return &Z_##modname##_Z_%func%; */                                                                 \
+  /*    return &w2c_##modname##_%func%; */                                                                 \
   /* } */                                                                                                  \
                                                                                                            \
-  static constexpr auto malloc_address = &Z_##modname##Z_malloc;                                           \
-  static constexpr auto free_address = &Z_##modname##Z_free;                                               \
+  static constexpr auto malloc_address = &w2c_##modname##_malloc;                                          \
+  static constexpr auto free_address = &w2c_##modname##_free;                                              \
 }
 
 // wasm_module_name module name used when compiling with wasm2c
@@ -89,7 +89,7 @@
 
 #define RLBOX_WASM2C_MODULE_FUNC_HELPER2(part1, part2, part3) part1##part2##part3
 #define RLBOX_WASM2C_MODULE_FUNC_HELPER(part1, part2, part3) RLBOX_WASM2C_MODULE_FUNC_HELPER2(part1, part2, part3)
-#define RLBOX_WASM2C_MODULE_FUNC(name) RLBOX_WASM2C_MODULE_FUNC_HELPER(Z_,RLBOX_WASM2C_MODULE_NAME,name)
+#define RLBOX_WASM2C_MODULE_FUNC(name) RLBOX_WASM2C_MODULE_FUNC_HELPER(w2c_,RLBOX_WASM2C_MODULE_NAME,name)
 
 namespace rlbox {
 
@@ -303,13 +303,9 @@ public:
 
 private:
   mutable typename T_Wasm2cModule::instance_t wasm2c_instance {0};
-  Z_env_instance_t sandbox_memory_env;
-  Z_wasi_snapshot_preview1_instance_t wasi_env;
+  struct w2c_env sandbox_memory_env;
+  struct w2c_wasi__snapshot__preview1 wasi_env;
   bool instance_initialized = false;
-#if !defined(_MSC_VER)
-__attribute__((weak))
-#endif
-  static std::once_flag wasm2c_module_initialized;
 public:
   // Needs to be public to be accessible in Z_envZ_memory
   wasm_rt_memory_t sandbox_memory_info;
@@ -400,7 +396,7 @@ private:
   }
 
   template<typename T_Ret, typename... T_Args>
-  inline uint32_t get_wasm2c_func_index(
+  inline wasm_rt_func_type_t get_wasm2c_func_index(
     // dummy for template inference
     T_Ret (*)(T_Args...) = nullptr
   ) const
@@ -410,13 +406,13 @@ private:
     constexpr uint32_t param_count = promoted? (sizeof...(T_Args) + 1) : (sizeof...(T_Args));
     constexpr uint32_t ret_count = promoted? 0 : (std::is_void_v<T_Ret>? 0 : 1);
 
-    uint32_t ret = 0;
+    wasm_rt_func_type_t ret = nullptr;
     if constexpr (ret_count == 0) {
-      ret = wasm_rt_register_func_type(param_count, ret_count
+      ret = T_Wasm2cModule::get_func_type(param_count, ret_count
         ,wasm2c_detail::convert_type_to_wasm_type<T_Args>::wasm2c_type...
       );
     } else {
-      ret = wasm_rt_register_func_type(param_count, ret_count,
+      ret = T_Wasm2cModule::get_func_type(param_count, ret_count,
         wasm2c_detail::convert_type_to_wasm_type<T_Args>::wasm2c_type...,
         wasm2c_detail::convert_type_to_wasm_type<T_Ret>::wasm2c_type
       );
@@ -485,7 +481,7 @@ protected:
     "Specify this module name in the define RLBOX_WASM2C_MODULE_NAME and DEFINE_RLBOX_WASM2C_MODULE_TYPE.");
 
   #define rlbox_wasm2c_sandbox_lookup_symbol(func_name)                            \
-  reinterpret_cast<void*>(&RLBOX_WASM2C_MODULE_FUNC(Z_##func_name)) /* NOLINT */
+  reinterpret_cast<void*>(&RLBOX_WASM2C_MODULE_FUNC(_##func_name)) /* NOLINT */
 
   // adding a template so that we can use static_assert to fire only if this
   // function is invoked
@@ -526,9 +522,6 @@ public:
     std::call_once(rlbox_wasm2c_initialized, [&](){
       wasm_rt_init();
       minwasi_init();
-    });
-    std::call_once(wasm2c_module_initialized, [&](){
-      T_Wasm2cModule::init_module();
     });
 
     override_max_heap_size = rlbox_wasm2c_get_adjusted_heap_size(override_max_heap_size);
@@ -962,14 +955,5 @@ public:
     return;
   }
 };
-
-// declare the static symbol with weak linkage to keep this header only
-template<typename T_Wasm2cModule>
-#if defined(_MSC_VER)
-__declspec(selectany)
-#else
-__attribute__((weak))
-#endif
-std::once_flag rlbox_wasm2c_sandbox<T_Wasm2cModule>::wasm2c_module_initialized;
 
 } // namespace rlbox

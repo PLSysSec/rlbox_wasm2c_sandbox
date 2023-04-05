@@ -44,7 +44,7 @@ static void* os_mmap_aligned(void* addr,
 // Returns 0 on success, non zero on failure.
 static int os_mmap_commit(void* curr_heap_end_pointer, size_t expanded_size, int prot);
 
-wasm_rt_memory_t* Z_envZ_memory(struct Z_env_instance_t* instance){
+wasm_rt_memory_t* w2c_env_memory(struct w2c_env* instance) {
   return instance->sandbox_memory_info;
 }
 

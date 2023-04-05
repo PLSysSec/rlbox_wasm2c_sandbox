@@ -391,8 +391,8 @@ static int check_clock(u32 clock_id) {
 
 // out is a pointer to a u64 timestamp in nanoseconds
 // https://github.com/WebAssembly/WASI/blob/main/phases/snapshot/docs.md#-timestamp-u64
-u32 Z_wasi_snapshot_preview1Z_clock_time_get(
-    Z_wasi_snapshot_preview1_instance_t* wasi_data,
+u32 w2c_wasi__snapshot__preview1_clock_time_get(
+    w2c_wasi__snapshot__preview1* wasi_data,
     u32 clock_id,
     u64 precision,
     u32 out) {
@@ -408,8 +408,8 @@ u32 Z_wasi_snapshot_preview1Z_clock_time_get(
   return ret;
 }
 
-u32 Z_wasi_snapshot_preview1Z_clock_res_get(
-    Z_wasi_snapshot_preview1_instance_t* wasi_data,
+u32 w2c_wasi__snapshot__preview1_clock_res_get(
+    w2c_wasi__snapshot__preview1* wasi_data,
     u32 clock_id,
     u32 out) {
   if (!check_clock(clock_id)) {
@@ -434,8 +434,8 @@ u32 Z_wasi_snapshot_preview1Z_clock_res_get(
 #define WASM_STDOUT 1
 #define WASM_STDERR 2
 
-u32 Z_wasi_snapshot_preview1Z_fd_prestat_get(
-    Z_wasi_snapshot_preview1_instance_t* wasi_data,
+u32 w2c_wasi__snapshot__preview1_fd_prestat_get(
+    w2c_wasi__snapshot__preview1* wasi_data,
     u32 fd,
     u32 prestat) {
   if (fd == WASM_STDIN || fd == WASM_STDOUT || fd == WASM_STDERR) {
@@ -444,8 +444,8 @@ u32 Z_wasi_snapshot_preview1Z_fd_prestat_get(
   return WASI_BADF_ERROR;
 }
 
-u32 Z_wasi_snapshot_preview1Z_fd_write(
-    Z_wasi_snapshot_preview1_instance_t* wasi_data,
+u32 w2c_wasi__snapshot__preview1_fd_write(
+    w2c_wasi__snapshot__preview1* wasi_data,
     u32 fd,
     u32 iov,
     u32 iovcnt,
@@ -480,8 +480,8 @@ u32 Z_wasi_snapshot_preview1Z_fd_write(
   return WASI_SUCCESS;
 }
 
-u32 Z_wasi_snapshot_preview1Z_fd_read(
-    Z_wasi_snapshot_preview1_instance_t* wasi_data,
+u32 w2c_wasi__snapshot__preview1_fd_read(
+    w2c_wasi__snapshot__preview1* wasi_data,
     u32 fd,
     u32 iov,
     u32 iovcnt,
@@ -590,24 +590,24 @@ static u32 strings_get(wasm_rt_memory_t* instance_memory,
   return WASI_SUCCESS;
 }
 
-u32 Z_wasi_snapshot_preview1Z_args_sizes_get(
-    Z_wasi_snapshot_preview1_instance_t* wasi_data,
+u32 w2c_wasi__snapshot__preview1_args_sizes_get(
+    w2c_wasi__snapshot__preview1* wasi_data,
     u32 p_argc,
     u32 p_argv_buf_size) {
   return strings_sizes_get(wasi_data->instance_memory, "main", p_argc, p_argv_buf_size,
                            wasi_data->main_argc, wasi_data->main_argv);
 }
 
-u32 Z_wasi_snapshot_preview1Z_args_get(
-    Z_wasi_snapshot_preview1_instance_t* wasi_data,
+u32 w2c_wasi__snapshot__preview1_args_get(
+    w2c_wasi__snapshot__preview1* wasi_data,
     u32 p_argv,
     u32 p_argv_buf) {
   return strings_get(wasi_data->instance_memory, "main", p_argv, p_argv_buf,
                      wasi_data->main_argc, wasi_data->main_argv);
 }
 
-u32 Z_wasi_snapshot_preview1Z_environ_sizes_get(
-    Z_wasi_snapshot_preview1_instance_t* wasi_data,
+u32 w2c_wasi__snapshot__preview1_environ_sizes_get(
+    w2c_wasi__snapshot__preview1* wasi_data,
     u32 p_env_count,
     u32 p_env_buf_size) {
   return strings_sizes_get(wasi_data->instance_memory, "env", p_env_count,
@@ -615,8 +615,8 @@ u32 Z_wasi_snapshot_preview1Z_environ_sizes_get(
                            wasi_data->env);
 }
 
-u32 Z_wasi_snapshot_preview1Z_environ_get(
-    Z_wasi_snapshot_preview1_instance_t* wasi_data,
+u32 w2c_wasi__snapshot__preview1_environ_get(
+    w2c_wasi__snapshot__preview1* wasi_data,
     u32 p_env,
     u32 p_env_buf) {
   return strings_get(wasi_data->instance_memory, "env", p_env, p_env_buf,
@@ -627,8 +627,8 @@ u32 Z_wasi_snapshot_preview1Z_environ_get(
 // Proc exit operation
 /////////////////////////////////////////////////////////////
 
-void Z_wasi_snapshot_preview1Z_proc_exit(
-    Z_wasi_snapshot_preview1_instance_t* wasi_data,
+void w2c_wasi__snapshot__preview1_proc_exit(
+    w2c_wasi__snapshot__preview1* wasi_data,
     u32 x) {
 #ifdef WASM2C_WASI_TRAP_ON_EXIT
   TRAP(WASI);
@@ -648,78 +648,78 @@ void Z_wasi_snapshot_preview1Z_proc_exit(
 
 // clang-format off
 
-STUB_IMPORT_IMPL(u32, Z_wasi_snapshot_preview1Z_fd_advise,
-                 (Z_wasi_snapshot_preview1_instance_t* wasi_data, u32 a, u64 b, u64 c, u32 d));
-STUB_IMPORT_IMPL(u32, Z_wasi_snapshot_preview1Z_fd_allocate,
-                 (Z_wasi_snapshot_preview1_instance_t* wasi_data, u32 a, u64 b, u64 c));
-STUB_IMPORT_IMPL(u32, Z_wasi_snapshot_preview1Z_fd_close,
-                 (Z_wasi_snapshot_preview1_instance_t* wasi_data, u32 fd));
-STUB_IMPORT_IMPL(u32, Z_wasi_snapshot_preview1Z_fd_datasync,
-                 (Z_wasi_snapshot_preview1_instance_t* wasi_data, u32 a));
-STUB_IMPORT_IMPL(u32, Z_wasi_snapshot_preview1Z_fd_fdstat_get,
-                 (Z_wasi_snapshot_preview1_instance_t* wasi_data, u32 a, u32 b));
-STUB_IMPORT_IMPL(u32, Z_wasi_snapshot_preview1Z_fd_fdstat_set_flags,
-                 (Z_wasi_snapshot_preview1_instance_t* wasi_data, u32 a, u32 b));
-STUB_IMPORT_IMPL(u32, Z_wasi_snapshot_preview1Z_fd_fdstat_set_rights,
-                 (Z_wasi_snapshot_preview1_instance_t* wasi_data, u32 a, u64 b, u64 c));
-STUB_IMPORT_IMPL(u32, Z_wasi_snapshot_preview1Z_fd_filestat_get,
-                 (Z_wasi_snapshot_preview1_instance_t* wasi_data, u32 a, u32 b));
-STUB_IMPORT_IMPL(u32, Z_wasi_snapshot_preview1Z_fd_filestat_set_size,
-                 (Z_wasi_snapshot_preview1_instance_t* wasi_data, u32 a, u64 b));
-STUB_IMPORT_IMPL(u32, Z_wasi_snapshot_preview1Z_fd_filestat_set_times,
-                 (Z_wasi_snapshot_preview1_instance_t* wasi_data, u32 a, u64 b, u64 c, u32 d));
-STUB_IMPORT_IMPL(u32, Z_wasi_snapshot_preview1Z_fd_pread,
-                 (Z_wasi_snapshot_preview1_instance_t* wasi_data, u32 a, u32 b, u32 c, u64 d, u32 e));
-STUB_IMPORT_IMPL(u32, Z_wasi_snapshot_preview1Z_fd_prestat_dir_name,
-                 (Z_wasi_snapshot_preview1_instance_t* wasi_data, u32 a, u32 b, u32 c));
-STUB_IMPORT_IMPL(u32, Z_wasi_snapshot_preview1Z_fd_pwrite,
-                 (Z_wasi_snapshot_preview1_instance_t* wasi_data, u32 a, u32 b, u32 c, u64 d, u32 e));
-STUB_IMPORT_IMPL(u32, Z_wasi_snapshot_preview1Z_fd_readdir,
-                 (Z_wasi_snapshot_preview1_instance_t* wasi_data, u32 a, u32 b, u32 c, u64 d, u32 e));
-STUB_IMPORT_IMPL(u32, Z_wasi_snapshot_preview1Z_fd_renumber,
-                 (Z_wasi_snapshot_preview1_instance_t* wasi_data, u32 a, u32 b));
-STUB_IMPORT_IMPL(u32, Z_wasi_snapshot_preview1Z_fd_seek,
-                 (Z_wasi_snapshot_preview1_instance_t* wasi_data, u32 fd, u64 offset, u32 whence, u32 new_offset));
-STUB_IMPORT_IMPL(u32, Z_wasi_snapshot_preview1Z_fd_sync,
-                 (Z_wasi_snapshot_preview1_instance_t* wasi_data, u32 a));
-STUB_IMPORT_IMPL(u32, Z_wasi_snapshot_preview1Z_fd_tell,
-                 (Z_wasi_snapshot_preview1_instance_t* wasi_data, u32 a, u32 b));
-STUB_IMPORT_IMPL(u32, Z_wasi_snapshot_preview1Z_path_create_directory,
-                 (Z_wasi_snapshot_preview1_instance_t* wasi_data, u32 a, u32 b, u32 c));
-STUB_IMPORT_IMPL(u32, Z_wasi_snapshot_preview1Z_path_filestat_get,
-                 (Z_wasi_snapshot_preview1_instance_t* wasi_data, u32 a, u32 b, u32 c, u32 d, u32 e));
-STUB_IMPORT_IMPL(u32, Z_wasi_snapshot_preview1Z_path_filestat_set_times,
-                 (Z_wasi_snapshot_preview1_instance_t* wasi_data, u32 a, u32 b, u32 c, u32 d, u64 e, u64 f, u32 g));
-STUB_IMPORT_IMPL(u32, Z_wasi_snapshot_preview1Z_path_link,
-                 (Z_wasi_snapshot_preview1_instance_t* wasi_data, u32 a, u32 b, u32 c, u32 d, u32 e, u32 f, u32 g));
-STUB_IMPORT_IMPL(u32, Z_wasi_snapshot_preview1Z_path_open,
-                 (Z_wasi_snapshot_preview1_instance_t* wasi_data, u32 a, u32 b, u32 c, u32 d, u32 e, u64 f, u64 g, u32 h, u32 i));
-STUB_IMPORT_IMPL(u32, Z_wasi_snapshot_preview1Z_path_readlink,
-                 (Z_wasi_snapshot_preview1_instance_t* wasi_data, u32 a, u32 b, u32 c, u32 d, u32 e, u32 f));
-STUB_IMPORT_IMPL(u32, Z_wasi_snapshot_preview1Z_path_remove_directory,
-                 (Z_wasi_snapshot_preview1_instance_t* wasi_data, u32 a, u32 b, u32 c));
-STUB_IMPORT_IMPL(u32, Z_wasi_snapshot_preview1Z_path_rename,
-                 (Z_wasi_snapshot_preview1_instance_t* wasi_data, u32 a, u32 b, u32 c, u32 d, u32 e, u32 f));
-STUB_IMPORT_IMPL(u32, Z_wasi_snapshot_preview1Z_path_symlink,
-                 (Z_wasi_snapshot_preview1_instance_t* wasi_data, u32 a, u32 b, u32 c, u32 d, u32 e));
-STUB_IMPORT_IMPL(u32, Z_wasi_snapshot_preview1Z_path_unlink_file,
-                 (Z_wasi_snapshot_preview1_instance_t* wasi_data, u32 a, u32 b, u32 c));
-STUB_IMPORT_IMPL(u32, Z_wasi_snapshot_preview1Z_poll_oneoff,
-                 (Z_wasi_snapshot_preview1_instance_t* wasi_data, u32 a, u32 b, u32 c, u32 d));
-STUB_IMPORT_IMPL(u32, Z_wasi_snapshot_preview1Z_proc_raise,
-                 (Z_wasi_snapshot_preview1_instance_t* wasi_data, u32 a));
-STUB_IMPORT_IMPL(u32, Z_wasi_snapshot_preview1Z_random_get,
-                 (Z_wasi_snapshot_preview1_instance_t* wasi_data, u32 a, u32 b));
-STUB_IMPORT_IMPL(u32, Z_wasi_snapshot_preview1Z_sched_yield,
-                 (Z_wasi_snapshot_preview1_instance_t* wasi_data));
-STUB_IMPORT_IMPL(u32, Z_wasi_snapshot_preview1Z_sock_accept,
-                 (Z_wasi_snapshot_preview1_instance_t* wasi_data, u32 a, u32 b, u32 c));
-STUB_IMPORT_IMPL(u32, Z_wasi_snapshot_preview1Z_sock_recv,
-                 (Z_wasi_snapshot_preview1_instance_t* wasi_data, u32 a, u32 b, u32 c, u32 d, u32 e, u32 f));
-STUB_IMPORT_IMPL(u32, Z_wasi_snapshot_preview1Z_sock_send,
-                 (Z_wasi_snapshot_preview1_instance_t* wasi_data, u32 a, u32 b, u32 c, u32 d, u32 e));
-STUB_IMPORT_IMPL(u32, Z_wasi_snapshot_preview1Z_sock_shutdown,
-                 (Z_wasi_snapshot_preview1_instance_t* wasi_data, u32 a, u32 b));
+STUB_IMPORT_IMPL(u32, w2c_wasi__snapshot__preview1_fd_advise,
+                 (w2c_wasi__snapshot__preview1* wasi_data, u32 a, u64 b, u64 c, u32 d));
+STUB_IMPORT_IMPL(u32, w2c_wasi__snapshot__preview1_fd_allocate,
+                 (w2c_wasi__snapshot__preview1* wasi_data, u32 a, u64 b, u64 c));
+STUB_IMPORT_IMPL(u32, w2c_wasi__snapshot__preview1_fd_close,
+                 (w2c_wasi__snapshot__preview1* wasi_data, u32 fd));
+STUB_IMPORT_IMPL(u32, w2c_wasi__snapshot__preview1_fd_datasync,
+                 (w2c_wasi__snapshot__preview1* wasi_data, u32 a));
+STUB_IMPORT_IMPL(u32, w2c_wasi__snapshot__preview1_fd_fdstat_get,
+                 (w2c_wasi__snapshot__preview1* wasi_data, u32 a, u32 b));
+STUB_IMPORT_IMPL(u32, w2c_wasi__snapshot__preview1_fd_fdstat_set_flags,
+                 (w2c_wasi__snapshot__preview1* wasi_data, u32 a, u32 b));
+STUB_IMPORT_IMPL(u32, w2c_wasi__snapshot__preview1_fd_fdstat_set_rights,
+                 (w2c_wasi__snapshot__preview1* wasi_data, u32 a, u64 b, u64 c));
+STUB_IMPORT_IMPL(u32, w2c_wasi__snapshot__preview1_fd_filestat_get,
+                 (w2c_wasi__snapshot__preview1* wasi_data, u32 a, u32 b));
+STUB_IMPORT_IMPL(u32, w2c_wasi__snapshot__preview1_fd_filestat_set_size,
+                 (w2c_wasi__snapshot__preview1* wasi_data, u32 a, u64 b));
+STUB_IMPORT_IMPL(u32, w2c_wasi__snapshot__preview1_fd_filestat_set_times,
+                 (w2c_wasi__snapshot__preview1* wasi_data, u32 a, u64 b, u64 c, u32 d));
+STUB_IMPORT_IMPL(u32, w2c_wasi__snapshot__preview1_fd_pread,
+                 (w2c_wasi__snapshot__preview1* wasi_data, u32 a, u32 b, u32 c, u64 d, u32 e));
+STUB_IMPORT_IMPL(u32, w2c_wasi__snapshot__preview1_fd_prestat_dir_name,
+                 (w2c_wasi__snapshot__preview1* wasi_data, u32 a, u32 b, u32 c));
+STUB_IMPORT_IMPL(u32, w2c_wasi__snapshot__preview1_fd_pwrite,
+                 (w2c_wasi__snapshot__preview1* wasi_data, u32 a, u32 b, u32 c, u64 d, u32 e));
+STUB_IMPORT_IMPL(u32, w2c_wasi__snapshot__preview1_fd_readdir,
+                 (w2c_wasi__snapshot__preview1* wasi_data, u32 a, u32 b, u32 c, u64 d, u32 e));
+STUB_IMPORT_IMPL(u32, w2c_wasi__snapshot__preview1_fd_renumber,
+                 (w2c_wasi__snapshot__preview1* wasi_data, u32 a, u32 b));
+STUB_IMPORT_IMPL(u32, w2c_wasi__snapshot__preview1_fd_seek,
+                 (w2c_wasi__snapshot__preview1* wasi_data, u32 fd, u64 offset, u32 whence, u32 new_offset));
+STUB_IMPORT_IMPL(u32, w2c_wasi__snapshot__preview1_fd_sync,
+                 (w2c_wasi__snapshot__preview1* wasi_data, u32 a));
+STUB_IMPORT_IMPL(u32, w2c_wasi__snapshot__preview1_fd_tell,
+                 (w2c_wasi__snapshot__preview1* wasi_data, u32 a, u32 b));
+STUB_IMPORT_IMPL(u32, w2c_wasi__snapshot__preview1_path_create_directory,
+                 (w2c_wasi__snapshot__preview1* wasi_data, u32 a, u32 b, u32 c));
+STUB_IMPORT_IMPL(u32, w2c_wasi__snapshot__preview1_path_filestat_get,
+                 (w2c_wasi__snapshot__preview1* wasi_data, u32 a, u32 b, u32 c, u32 d, u32 e));
+STUB_IMPORT_IMPL(u32, w2c_wasi__snapshot__preview1_path_filestat_set_times,
+                 (w2c_wasi__snapshot__preview1* wasi_data, u32 a, u32 b, u32 c, u32 d, u64 e, u64 f, u32 g));
+STUB_IMPORT_IMPL(u32, w2c_wasi__snapshot__preview1_path_link,
+                 (w2c_wasi__snapshot__preview1* wasi_data, u32 a, u32 b, u32 c, u32 d, u32 e, u32 f, u32 g));
+STUB_IMPORT_IMPL(u32, w2c_wasi__snapshot__preview1_path_open,
+                 (w2c_wasi__snapshot__preview1* wasi_data, u32 a, u32 b, u32 c, u32 d, u32 e, u64 f, u64 g, u32 h, u32 i));
+STUB_IMPORT_IMPL(u32, w2c_wasi__snapshot__preview1_path_readlink,
+                 (w2c_wasi__snapshot__preview1* wasi_data, u32 a, u32 b, u32 c, u32 d, u32 e, u32 f));
+STUB_IMPORT_IMPL(u32, w2c_wasi__snapshot__preview1_path_remove_directory,
+                 (w2c_wasi__snapshot__preview1* wasi_data, u32 a, u32 b, u32 c));
+STUB_IMPORT_IMPL(u32, w2c_wasi__snapshot__preview1_path_rename,
+                 (w2c_wasi__snapshot__preview1* wasi_data, u32 a, u32 b, u32 c, u32 d, u32 e, u32 f));
+STUB_IMPORT_IMPL(u32, w2c_wasi__snapshot__preview1_path_symlink,
+                 (w2c_wasi__snapshot__preview1* wasi_data, u32 a, u32 b, u32 c, u32 d, u32 e));
+STUB_IMPORT_IMPL(u32, w2c_wasi__snapshot__preview1_path_unlink_file,
+                 (w2c_wasi__snapshot__preview1* wasi_data, u32 a, u32 b, u32 c));
+STUB_IMPORT_IMPL(u32, w2c_wasi__snapshot__preview1_poll_oneoff,
+                 (w2c_wasi__snapshot__preview1* wasi_data, u32 a, u32 b, u32 c, u32 d));
+STUB_IMPORT_IMPL(u32, w2c_wasi__snapshot__preview1_proc_raise,
+                 (w2c_wasi__snapshot__preview1* wasi_data, u32 a));
+STUB_IMPORT_IMPL(u32, w2c_wasi__snapshot__preview1_random_get,
+                 (w2c_wasi__snapshot__preview1* wasi_data, u32 a, u32 b));
+STUB_IMPORT_IMPL(u32, w2c_wasi__snapshot__preview1_sched_yield,
+                 (w2c_wasi__snapshot__preview1* wasi_data));
+STUB_IMPORT_IMPL(u32, w2c_wasi__snapshot__preview1_sock_accept,
+                 (w2c_wasi__snapshot__preview1* wasi_data, u32 a, u32 b, u32 c));
+STUB_IMPORT_IMPL(u32, w2c_wasi__snapshot__preview1_sock_recv,
+                 (w2c_wasi__snapshot__preview1* wasi_data, u32 a, u32 b, u32 c, u32 d, u32 e, u32 f));
+STUB_IMPORT_IMPL(u32, w2c_wasi__snapshot__preview1_sock_send,
+                 (w2c_wasi__snapshot__preview1* wasi_data, u32 a, u32 b, u32 c, u32 d, u32 e));
+STUB_IMPORT_IMPL(u32, w2c_wasi__snapshot__preview1_sock_shutdown,
+                 (w2c_wasi__snapshot__preview1* wasi_data, u32 a, u32 b));
 
 // clang-format on
 
@@ -730,10 +730,10 @@ void minwasi_init() {
   os_clock_init();
 }
 
-void minwasi_init_instance(Z_wasi_snapshot_preview1_instance_t* wasi_data) {
+void minwasi_init_instance(w2c_wasi__snapshot__preview1* wasi_data) {
   os_clock_init_instance(&(wasi_data->clock_data));
 }
 
-void minwasi_cleanup_instance(Z_wasi_snapshot_preview1_instance_t* wasi_data) {
+void minwasi_cleanup_instance(w2c_wasi__snapshot__preview1* wasi_data) {
   os_clock_cleanup_instance(&(wasi_data->clock_data));
 }

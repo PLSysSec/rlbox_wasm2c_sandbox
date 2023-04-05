@@ -12,7 +12,7 @@
 extern "C" {
 #endif
 
-typedef struct Z_wasi_snapshot_preview1_instance_t {
+typedef struct w2c_wasi__snapshot__preview1 {
   wasm_rt_memory_t* instance_memory;
 
   uint32_t main_argc;
@@ -22,11 +22,11 @@ typedef struct Z_wasi_snapshot_preview1_instance_t {
   const char** env;
 
   void* clock_data;
-} Z_wasi_snapshot_preview1_instance_t;
+} w2c_wasi__snapshot__preview1;
 
 void minwasi_init();
-void minwasi_init_instance(Z_wasi_snapshot_preview1_instance_t* wasi_data);
-void minwasi_cleanup_instance(Z_wasi_snapshot_preview1_instance_t* wasi_data);
+void minwasi_init_instance(w2c_wasi__snapshot__preview1* wasi_data);
+void minwasi_cleanup_instance(w2c_wasi__snapshot__preview1* wasi_data);
 
 #ifdef __cplusplus
 }

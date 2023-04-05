@@ -11,11 +11,11 @@
 extern "C" {
 #endif
 
-struct Z_env_instance_t {
+struct w2c_env {
   wasm_rt_memory_t* sandbox_memory_info;
 };
 
-wasm_rt_memory_t* Z_envZ_memory(struct Z_env_instance_t* instance);
+wasm_rt_memory_t* w2c_env_memory(struct w2c_env* instance);
 
 wasm_rt_memory_t create_wasm2c_memory(uint32_t initial_pages, uint64_t override_max_wasm_pages);
 void destroy_wasm2c_memory(wasm_rt_memory_t* memory);
