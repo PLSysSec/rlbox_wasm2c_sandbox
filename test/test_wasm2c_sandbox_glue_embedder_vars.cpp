@@ -11,10 +11,8 @@ RLBOX_WASM2C_SANDBOX_STATIC_VARIABLES();
 // NOLINTNEXTLINE
 #define TestName "rlbox_wasm2c_sandbox embedder"
 
-DEFINE_RLBOX_WASM2C_MODULE_TYPE(glue__lib__wasm2c);
-
 // NOLINTNEXTLINE
-#define TestType rlbox::rlbox_wasm2c_sandbox<rlbox_wasm2c_module_type_glue__lib__wasm2c>
+#define TestType rlbox::rlbox_wasm2c_sandbox
 
 // NOLINTNEXTLINE
 #define CreateSandbox(sandbox) sandbox.create_sandbox()

@@ -82,6 +82,17 @@
 #error "Expected definition for RLBOX_WASM2C_MODULE_NAME"
 #endif
 
+// Need an extra macro to expand RLBOX_WASM2C_MODULE_NAME
+#define INVOKE_DEFINE_RLBOX_WASM2C_MODULE_TYPE(modname) DEFINE_RLBOX_WASM2C_MODULE_TYPE(modname)
+
+INVOKE_DEFINE_RLBOX_WASM2C_MODULE_TYPE(RLBOX_WASM2C_MODULE_NAME);
+
+// Concat after macro expansion
+#define RLBOX_WASM2C_CONCAT2(x, y) x##y
+#define RLBOX_WASM2C_CONCAT(x, y) RLBOX_WASM2C_CONCAT2(x, y)
+
+#define RLBOX_WASM_MODULE_TYPE_CURR RLBOX_WASM2C_CONCAT(rlbox_wasm2c_module_type_, RLBOX_WASM2C_MODULE_NAME)
+
 #define RLBOX_WASM2C_STRINGIFY(x) RLBOX_WASM2C_STRINGIFY2(x)
 #define RLBOX_WASM2C_STRINGIFY2(x) #x
 
@@ -93,7 +104,6 @@
 
 namespace rlbox {
 
-template<typename T_Wasm2cModule>
 class rlbox_wasm2c_sandbox;
 
 namespace wasm2c_detail {
@@ -257,28 +267,24 @@ namespace wasm2c_detail {
 
 } // namespace wasm2c_detail
 
-template<typename T_Wasm2cModule>
 struct rlbox_wasm2c_sandbox_thread_data
 {
-  rlbox_wasm2c_sandbox<T_Wasm2cModule>* sandbox;
+  rlbox_wasm2c_sandbox* sandbox;
   uint32_t last_callback_invoked;
 };
 
 #ifdef RLBOX_EMBEDDER_PROVIDES_TLS_STATIC_VARIABLES
 
-template<typename T_Wasm2cModule>
-rlbox_wasm2c_sandbox_thread_data<T_Wasm2cModule>* get_rlbox_wasm2c_sandbox_thread_data();
+rlbox_wasm2c_sandbox_thread_data* get_rlbox_wasm2c_sandbox_thread_data();
 
-#define RLBOX_WASM2C_SANDBOX_STATIC_VARIABLES()                                                                  \
-  template<typename T_Wasm2cModule>                                                                              \
-  thread_local rlbox::rlbox_wasm2c_sandbox_thread_data<T_Wasm2cModule> rlbox_wasm2c_sandbox_thread_info{ 0, 0 }; \
-                                                                                                                 \
-  namespace rlbox {                                                                                              \
-    template<typename T_Wasm2cModule>                                                                            \
-    rlbox_wasm2c_sandbox_thread_data<T_Wasm2cModule>* get_rlbox_wasm2c_sandbox_thread_data() {                   \
-      return &rlbox_wasm2c_sandbox_thread_info<T_Wasm2cModule>;                                                  \
-    }                                                                                                            \
-  }                                                                                                              \
+#define RLBOX_WASM2C_SANDBOX_STATIC_VARIABLES()                                                  \
+  thread_local rlbox::rlbox_wasm2c_sandbox_thread_data rlbox_wasm2c_sandbox_thread_info{ 0, 0 }; \
+                                                                                                 \
+  namespace rlbox {                                                                              \
+    rlbox_wasm2c_sandbox_thread_data* get_rlbox_wasm2c_sandbox_thread_data() {                   \
+      return &rlbox_wasm2c_sandbox_thread_info;                                                  \
+    }                                                                                            \
+  }                                                                                              \
   static_assert(true, "Enforce semi-colon")
 
 #endif
@@ -291,7 +297,6 @@ __attribute__((weak))
 #endif
 std::once_flag rlbox_wasm2c_initialized;
 
-template<typename T_Wasm2cModule>
 class rlbox_wasm2c_sandbox
 {
 public:
@@ -302,7 +307,7 @@ public:
   using T_ShortType = int16_t;
 
 private:
-  mutable typename T_Wasm2cModule::instance_t wasm2c_instance {0};
+  mutable typename RLBOX_WASM_MODULE_TYPE_CURR::instance_t wasm2c_instance {0};
   struct w2c_env sandbox_memory_env;
   struct w2c_wasi__snapshot__preview1 wasi_env;
   bool instance_initialized = false;
@@ -325,7 +330,7 @@ private:
   mutable std::map<uint32_t, const void*> slot_assignments;
 
 #ifndef RLBOX_EMBEDDER_PROVIDES_TLS_STATIC_VARIABLES
-  thread_local static inline rlbox_wasm2c_sandbox_thread_data<T_Wasm2cModule> thread_data{ 0, 0 };
+  thread_local static inline rlbox_wasm2c_sandbox_thread_data thread_data{ 0, 0 };
 #endif
 
   template<typename T_FormalRet, typename T_ActualRet>
@@ -349,7 +354,7 @@ private:
     typename wasm2c_detail::convert_type_to_wasm_type<T_Args>::type... params)
   {
 #ifdef RLBOX_EMBEDDER_PROVIDES_TLS_STATIC_VARIABLES
-    auto& thread_data = *get_rlbox_wasm2c_sandbox_thread_data<T_Wasm2cModule>();
+    auto& thread_data = *get_rlbox_wasm2c_sandbox_thread_data();
 #endif
     thread_data.last_callback_invoked = N;
     using T_Func = T_Ret (*)(T_Args...);
@@ -373,7 +378,7 @@ private:
     typename wasm2c_detail::convert_type_to_wasm_type<T_Args>::type... params)
   {
 #ifdef RLBOX_EMBEDDER_PROVIDES_TLS_STATIC_VARIABLES
-    auto& thread_data = *get_rlbox_wasm2c_sandbox_thread_data<T_Wasm2cModule>();
+    auto& thread_data = *get_rlbox_wasm2c_sandbox_thread_data();
 #endif
     thread_data.last_callback_invoked = N;
     using T_Func = T_Ret (*)(T_Args...);
@@ -408,11 +413,11 @@ private:
 
     wasm_rt_func_type_t ret = nullptr;
     if constexpr (ret_count == 0) {
-      ret = T_Wasm2cModule::get_func_type(param_count, ret_count
+      ret = RLBOX_WASM_MODULE_TYPE_CURR::get_func_type(param_count, ret_count
         ,wasm2c_detail::convert_type_to_wasm_type<T_Args>::wasm2c_type...
       );
     } else {
-      ret = T_Wasm2cModule::get_func_type(param_count, ret_count,
+      ret = RLBOX_WASM_MODULE_TYPE_CURR::get_func_type(param_count, ret_count,
         wasm2c_detail::convert_type_to_wasm_type<T_Args>::wasm2c_type...,
         wasm2c_detail::convert_type_to_wasm_type<T_Ret>::wasm2c_type
       );
@@ -475,7 +480,7 @@ public:
 protected:
 
   static_assert(
-    strcmp(T_Wasm2cModule::prefix, RLBOX_WASM2C_MODULE_NAME_STR) == 0,
+    strcmp(RLBOX_WASM_MODULE_TYPE_CURR::prefix, RLBOX_WASM2C_MODULE_NAME_STR) == 0,
     "The definition of RLBOX_WASM2C_MODULE_NAME does not match the value passed to DEFINE_RLBOX_WASM2C_MODULE_TYPE. "
     "RLBox's wasm2c module support is currently limited and can only support a single module per instance. "
     "Specify this module name in the define RLBOX_WASM2C_MODULE_NAME and DEFINE_RLBOX_WASM2C_MODULE_TYPE.");
@@ -528,12 +533,12 @@ public:
     const uint64_t override_max_wasm_pages = rlbox_wasm2c_get_heap_page_count(override_max_heap_size);
     FALLIBLE_DYNAMIC_CHECK(infallible, override_max_wasm_pages <= 65536, "Wasm allows a max heap size of 4GB");
 
-    sandbox_memory_info = create_wasm2c_memory(*T_Wasm2cModule::initial_memory_pages, override_max_wasm_pages);
+    sandbox_memory_info = create_wasm2c_memory(*RLBOX_WASM_MODULE_TYPE_CURR::initial_memory_pages, override_max_wasm_pages);
     FALLIBLE_DYNAMIC_CHECK(infallible, sandbox_memory_info.data != nullptr, "Could not allocate a heap for the wasm2c sandbox");
 
     sandbox_memory_env.sandbox_memory_info = &sandbox_memory_info;
     wasi_env.instance_memory = &sandbox_memory_info;
-    T_Wasm2cModule::create_instance(&wasm2c_instance, &sandbox_memory_env, &wasi_env);
+    RLBOX_WASM_MODULE_TYPE_CURR::create_instance(&wasm2c_instance, &sandbox_memory_env, &wasi_env);
 
     heap_base = reinterpret_cast<uintptr_t>(impl_get_memory_location());
 
@@ -563,7 +568,7 @@ public:
 
     if (instance_initialized) {
       instance_initialized = false;
-      T_Wasm2cModule::free_instance(&wasm2c_instance);
+      RLBOX_WASM_MODULE_TYPE_CURR::free_instance(&wasm2c_instance);
     }
 
     destroy_wasm2c_memory(&sandbox_memory_info);
@@ -622,7 +627,7 @@ public:
   static inline void* impl_get_unsandboxed_pointer_no_ctx(
     T_PointerType p,
     const void* example_unsandboxed_ptr,
-    rlbox_wasm2c_sandbox<T_Wasm2cModule>* (*expensive_sandbox_finder)(
+    rlbox_wasm2c_sandbox* (*expensive_sandbox_finder)(
       const void* example_unsandboxed_ptr))
   {
     // on 32-bit platforms we don't assume the heap is aligned
@@ -652,7 +657,7 @@ public:
   static inline T_PointerType impl_get_sandboxed_pointer_no_ctx(
     const void* p,
     const void* example_unsandboxed_ptr,
-    rlbox_wasm2c_sandbox<T_Wasm2cModule>* (*expensive_sandbox_finder)(
+    rlbox_wasm2c_sandbox* (*expensive_sandbox_finder)(
       const void* example_unsandboxed_ptr))
   {
     // on 32-bit platforms we don't assume the heap is aligned
@@ -706,7 +711,7 @@ public:
   auto impl_invoke_with_func_ptr(T_Converted* func_ptr, T_Args&&... params)
   {
 #ifdef RLBOX_EMBEDDER_PROVIDES_TLS_STATIC_VARIABLES
-    auto& thread_data = *get_rlbox_wasm2c_sandbox_thread_data<T_Wasm2cModule>();
+    auto& thread_data = *get_rlbox_wasm2c_sandbox_thread_data();
 #endif
     auto old_sandbox = thread_data.sandbox;
     thread_data.sandbox = this;
@@ -780,7 +785,7 @@ public:
       wasm2c_detail::change_class_arg_types<T_Converted, T_PointerType>;
 
     // Handle Point 5
-    using T_ConvHeap = wasm2c_detail::prepend_arg_type<T_ConvNoClass, typename T_Wasm2cModule::instance_t*>;
+    using T_ConvHeap = wasm2c_detail::prepend_arg_type<T_ConvNoClass, typename RLBOX_WASM_MODULE_TYPE_CURR::instance_t*>;
 
     // Function invocation
     auto func_ptr_conv =
@@ -815,7 +820,7 @@ public:
     using T_Func = void*(size_t);
     using T_Converted = T_PointerType(uint32_t);
     T_PointerType ret = impl_invoke_with_func_ptr<T_Func, T_Converted>(
-      reinterpret_cast<T_Converted*>(T_Wasm2cModule::malloc_address),
+      reinterpret_cast<T_Converted*>(RLBOX_WASM_MODULE_TYPE_CURR::malloc_address),
       static_cast<uint32_t>(size));
     return ret;
   }
@@ -825,7 +830,7 @@ public:
     using T_Func = void(void*);
     using T_Converted = void(T_PointerType);
     impl_invoke_with_func_ptr<T_Func, T_Converted>(
-      reinterpret_cast<T_Converted*>(T_Wasm2cModule::free_address), p);
+      reinterpret_cast<T_Converted*>(RLBOX_WASM_MODULE_TYPE_CURR::free_address), p);
   }
 
 private:
@@ -915,11 +920,11 @@ public:
     return static_cast<T_PointerType>(slot_number);
   }
 
-  static inline std::pair<rlbox_wasm2c_sandbox<T_Wasm2cModule>*, void*>
+  static inline std::pair<rlbox_wasm2c_sandbox*, void*>
   impl_get_executed_callback_sandbox_and_key()
   {
 #ifdef RLBOX_EMBEDDER_PROVIDES_TLS_STATIC_VARIABLES
-    auto& thread_data = *get_rlbox_wasm2c_sandbox_thread_data<T_Wasm2cModule>();
+    auto& thread_data = *get_rlbox_wasm2c_sandbox_thread_data();
 #endif
     auto sandbox = thread_data.sandbox;
     auto callback_num = thread_data.last_callback_invoked;
