@@ -48,6 +48,10 @@ wasm_rt_memory_t* w2c_env_memory(struct w2c_env* instance) {
   return instance->sandbox_memory_info;
 }
 
+wasm_rt_funcref_table_t* w2c_env_0x5F_indirect_function_table(struct w2c_env* instance) {
+  return instance->sandbox_callback_table;
+}
+
 #define WASM_PAGE_SIZE 65536
 #define RLBOX_FOUR_GIG 0x100000000ull
 

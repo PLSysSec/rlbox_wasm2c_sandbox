@@ -200,7 +200,7 @@ add_custom_command(OUTPUT "${GLUE_LIB_H}" "${GLUE_LIB_C}" "${GLUE_LIB_WASM}"
                     COMMAND ${wasiclang_SOURCE_DIR}/bin/clang
                             --sysroot ${wasiclang_SOURCE_DIR}/share/wasi-sysroot/
                             -O3
-                            -Wl,--export-all -Wl,--no-entry -Wl,--growable-table -Wl,--stack-first -Wl,-z,stack-size=1048576 -Wl,--import-memory
+                            -Wl,--export-all -Wl,--no-entry -Wl,--growable-table -Wl,--stack-first -Wl,-z,stack-size=1048576 -Wl,--import-memory -Wl,--import-table
                             -o ${GLUE_LIB_WASM}
                             ${CMAKE_SOURCE_DIR}/c_src/wasm2c_sandbox_wrapper.c
                             ${rlbox_SOURCE_DIR}/code/tests/rlbox_glue/lib/libtest.c
@@ -300,5 +300,4 @@ add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} -V)
 add_dependencies(check test_rlbox_glue)
 add_dependencies(check test_rlbox_glue_smallheap)
 add_dependencies(check test_rlbox_glue_embed)
-# add_dependencies(check test_rlbox_glue_shadow_asan)
 

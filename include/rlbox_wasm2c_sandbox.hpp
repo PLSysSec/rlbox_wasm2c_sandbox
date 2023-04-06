@@ -311,11 +311,8 @@ private:
   struct w2c_env sandbox_memory_env;
   struct w2c_wasi__snapshot__preview1 wasi_env;
   bool instance_initialized = false;
-public:
-  // Needs to be public to be accessible in Z_envZ_memory
   wasm_rt_memory_t sandbox_memory_info;
-private:
-  wasm_rt_funcref_table_t* sandbox_callback_table = nullptr;
+  mutable wasm_rt_funcref_table_t sandbox_callback_table;
   uintptr_t heap_base;
   size_t return_slot_size = 0;
   T_PointerType return_slot = 0;
@@ -479,12 +476,6 @@ public:
 
 protected:
 
-  static_assert(
-    strcmp(RLBOX_WASM_MODULE_TYPE_CURR::prefix, RLBOX_WASM2C_MODULE_NAME_STR) == 0,
-    "The definition of RLBOX_WASM2C_MODULE_NAME does not match the value passed to DEFINE_RLBOX_WASM2C_MODULE_TYPE. "
-    "RLBox's wasm2c module support is currently limited and can only support a single module per instance. "
-    "Specify this module name in the define RLBOX_WASM2C_MODULE_NAME and DEFINE_RLBOX_WASM2C_MODULE_TYPE.");
-
   #define rlbox_wasm2c_sandbox_lookup_symbol(func_name)                            \
   reinterpret_cast<void*>(&RLBOX_WASM2C_MODULE_FUNC(_##func_name)) /* NOLINT */
 
@@ -536,7 +527,12 @@ public:
     sandbox_memory_info = create_wasm2c_memory(*RLBOX_WASM_MODULE_TYPE_CURR::initial_memory_pages, override_max_wasm_pages);
     FALLIBLE_DYNAMIC_CHECK(infallible, sandbox_memory_info.data != nullptr, "Could not allocate a heap for the wasm2c sandbox");
 
+    const uint32_t min_table_size = 10;
+    const uint32_t max_table_size = 0xffffffffu; /* this means unlimited */
+    wasm_rt_allocate_funcref_table(&sandbox_callback_table, min_table_size, max_table_size);
+
     sandbox_memory_env.sandbox_memory_info = &sandbox_memory_info;
+    sandbox_memory_env.sandbox_callback_table = &sandbox_callback_table;
     wasi_env.instance_memory = &sandbox_memory_info;
     RLBOX_WASM_MODULE_TYPE_CURR::create_instance(&wasm2c_instance, &sandbox_memory_env, &wasi_env);
 
@@ -552,7 +548,6 @@ public:
                             "Sandbox heap not aligned to 4GB");
     }
 
-    sandbox_callback_table = &(wasm2c_instance.w2c_T0);
     instance_initialized = true;
 
     return true;
@@ -572,6 +567,7 @@ public:
     }
 
     destroy_wasm2c_memory(&sandbox_memory_info);
+    wasm_rt_free_funcref_table(&sandbox_callback_table);
   }
 
   template<typename T>
@@ -609,7 +605,7 @@ public:
         func_val.func = reinterpret_cast<wasm_rt_function_ptr_t>(const_cast<void*>(p));
         func_val.module_instance = &wasm2c_instance;
 
-        sandbox_callback_table->data[slot_number] = func_val;
+        sandbox_callback_table.data[slot_number] = func_val;
         internal_callbacks[p] = slot_number;
         slot_assignments[slot_number] = p;
       }
@@ -842,16 +838,16 @@ private:
       return ret;
     }
 
-    const uint32_t curr_size = sandbox_callback_table->size;
+    const uint32_t curr_size = sandbox_callback_table.size;
 
-    detail::dynamic_check(curr_size < sandbox_callback_table->max_size,
+    detail::dynamic_check(curr_size < sandbox_callback_table.max_size,
       "Could not find an empty row in Wasm instance table. This would "
       "happen if you have registered too many callbacks, or unsandboxed "
       "too many function pointers.");
 
     wasm_rt_funcref_t func_val {0};
     // on success, this returns the previous number of elements in the table
-    const uint32_t ret = wasm_rt_grow_funcref_table(sandbox_callback_table, 1, func_val);
+    const uint32_t ret = wasm_rt_grow_funcref_table(&sandbox_callback_table, 1, func_val);
 
     detail::dynamic_check(ret != 0 && ret != (uint32_t) -1,
       "Adding a new callback slot to the wasm instance failed.");
@@ -910,7 +906,7 @@ public:
     func_val.module_instance = &wasm2c_instance;
 
     const uint32_t slot_number = new_callback_slot();
-    sandbox_callback_table->data[slot_number] = func_val;
+    sandbox_callback_table.data[slot_number] = func_val;
 
     callback_unique_keys[found_loc] = key;
     callbacks[found_loc] = callback;
@@ -943,7 +939,7 @@ public:
         if (callback_unique_keys[i] == key) {
           const uint32_t slot_number = callback_slot_assignment[i];
           wasm_rt_funcref_t func_val {0};
-          sandbox_callback_table->data[slot_number] = func_val;
+          sandbox_callback_table.data[slot_number] = func_val;
 
           callback_unique_keys[i] = nullptr;
           callbacks[i] = nullptr;
