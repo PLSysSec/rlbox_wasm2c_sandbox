@@ -3,6 +3,7 @@
 #include "wasm-rt.h"
 #include "wasm2c_rt_mem.h"
 #include "wasm2c_rt_minwasi.h"
+#include "rlbox_wasm2c_tls.hpp"
 
 // Pull the helper header from the main repo for dynamic_check and scope_exit
 #include "rlbox_helpers.hpp"
@@ -105,8 +106,6 @@ INVOKE_DEFINE_RLBOX_WASM2C_MODULE_TYPE(RLBOX_WASM2C_MODULE_NAME);
 #define RLBOX_WASM2C_MODULE_FUNC(name) RLBOX_WASM2C_MODULE_FUNC_HELPER(w2c_,RLBOX_WASM2C_MODULE_NAME,name)
 
 namespace rlbox {
-
-class rlbox_wasm2c_sandbox;
 
 namespace wasm2c_detail {
 
@@ -268,28 +267,6 @@ namespace wasm2c_detail {
     typename change_class_arg_types_detail::helper<T_Func, T_ArgNew>::type;
 
 } // namespace wasm2c_detail
-
-struct rlbox_wasm2c_sandbox_thread_data
-{
-  rlbox_wasm2c_sandbox* sandbox;
-  uint32_t last_callback_invoked;
-};
-
-#ifdef RLBOX_EMBEDDER_PROVIDES_TLS_STATIC_VARIABLES
-
-rlbox_wasm2c_sandbox_thread_data* get_rlbox_wasm2c_sandbox_thread_data();
-
-#define RLBOX_WASM2C_SANDBOX_STATIC_VARIABLES()                                                  \
-  thread_local rlbox::rlbox_wasm2c_sandbox_thread_data rlbox_wasm2c_sandbox_thread_info{ 0, 0 }; \
-                                                                                                 \
-  namespace rlbox {                                                                              \
-    rlbox_wasm2c_sandbox_thread_data* get_rlbox_wasm2c_sandbox_thread_data() {                   \
-      return &rlbox_wasm2c_sandbox_thread_info;                                                  \
-    }                                                                                            \
-  }                                                                                              \
-  static_assert(true, "Enforce semi-colon")
-
-#endif
 
 // declare the static symbol with weak linkage to keep this header only
 #if defined(_MSC_VER)
