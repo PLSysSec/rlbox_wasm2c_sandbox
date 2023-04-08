@@ -50,31 +50,33 @@
 #  endif
 #endif
 
-#define DEFINE_RLBOX_WASM2C_MODULE_TYPE(modname) struct rlbox_wasm2c_module_type_##modname {               \
-  using instance_t = w2c_##modname;                                                                        \
-                                                                                                           \
-  using create_instance_t = void(*)(instance_t*, struct w2c_env*, struct w2c_wasi__snapshot__preview1*);   \
-  static constexpr create_instance_t create_instance = &wasm2c_##modname##_instantiate;                    \
-                                                                                                           \
-  using free_instance_t = void(*)(instance_t*);                                                            \
-  static constexpr free_instance_t free_instance = &wasm2c_##modname##_free;                               \
-                                                                                                           \
-  using get_func_type_t = wasm_rt_func_type_t(*)(uint32_t, uint32_t, ...);                                 \
-  static constexpr get_func_type_t get_func_type = &wasm2c_##modname##_get_func_type;                      \
-                                                                                                           \
-  static constexpr const uint32_t* initial_memory_pages = &wasm2c_##modname##_min_env_memory;              \
-                                                                                                           \
-  static constexpr const char* prefix = #modname;                                                          \
-                                                                                                           \
-  /* A function that returns the address of the func specified as a constexpr string */                    \
-  /* Unfortunately, there is no way to implement the below in C++. */                                      \
-  /* Implement this to fully support multiple static modules. */                                           \
-  /* static constexpr void* dlsym_in_w2c_module(const char* func_name) { */                                \
-  /*    return &w2c_##modname##_%func%; */                                                                 \
-  /* } */                                                                                                  \
-                                                                                                           \
-  static constexpr auto malloc_address = &w2c_##modname##_malloc;                                          \
-  static constexpr auto free_address = &w2c_##modname##_free;                                              \
+#define DEFINE_RLBOX_WASM2C_MODULE_TYPE(modname) struct rlbox_wasm2c_module_type_##modname {                         \
+  using instance_t = w2c_##modname;                                                                                  \
+                                                                                                                     \
+  using create_instance_t = void(*)(instance_t*, struct w2c_env*, struct w2c_wasi__snapshot__preview1*);             \
+  static constexpr create_instance_t create_instance = &wasm2c_##modname##_instantiate;                              \
+                                                                                                                     \
+  using free_instance_t = void(*)(instance_t*);                                                                      \
+  static constexpr free_instance_t free_instance = &wasm2c_##modname##_free;                                         \
+                                                                                                                     \
+  using get_func_type_t = wasm_rt_func_type_t(*)(uint32_t, uint32_t, ...);                                           \
+  static constexpr get_func_type_t get_func_type = &wasm2c_##modname##_get_func_type;                                \
+                                                                                                                     \
+  static constexpr const uint64_t* initial_memory_pages = &wasm2c_##modname##_min_env_memory;                        \
+  static constexpr const uint8_t* is_memory_64 = &wasm2c_##modname##_is64_env_memory;                                \
+  static constexpr const uint32_t* initial_func_elements = &wasm2c_##modname##_min_env_0x5F_indirect_function_table; \
+                                                                                                                     \
+  static constexpr const char* prefix = #modname;                                                                    \
+                                                                                                                     \
+  /* A function that returns the address of the func specified as a constexpr string */                              \
+  /* Unfortunately, there is no way to implement the below in C++. */                                                \
+  /* Implement this to fully support multiple static modules. */                                                     \
+  /* static constexpr void* dlsym_in_w2c_module(const char* func_name) { */                                          \
+  /*    return &w2c_##modname##_%func%; */                                                                           \
+  /* } */                                                                                                            \
+                                                                                                                     \
+  static constexpr auto malloc_address = &w2c_##modname##_malloc;                                                    \
+  static constexpr auto free_address = &w2c_##modname##_free;                                                        \
 }
 
 // wasm_module_name module name used when compiling with wasm2c
@@ -527,9 +529,10 @@ public:
     sandbox_memory_info = create_wasm2c_memory(*RLBOX_WASM_MODULE_TYPE_CURR::initial_memory_pages, override_max_wasm_pages);
     FALLIBLE_DYNAMIC_CHECK(infallible, sandbox_memory_info.data != nullptr, "Could not allocate a heap for the wasm2c sandbox");
 
-    const uint32_t min_table_size = 10;
+    FALLIBLE_DYNAMIC_CHECK(infallible, *RLBOX_WASM_MODULE_TYPE_CURR::is_memory_64 == 0, "Does not support Wasm with memory64");
+
     const uint32_t max_table_size = 0xffffffffu; /* this means unlimited */
-    wasm_rt_allocate_funcref_table(&sandbox_callback_table, min_table_size, max_table_size);
+    wasm_rt_allocate_funcref_table(&sandbox_callback_table, *RLBOX_WASM_MODULE_TYPE_CURR::initial_func_elements, max_table_size);
 
     sandbox_memory_env.sandbox_memory_info = &sandbox_memory_info;
     sandbox_memory_env.sandbox_callback_table = &sandbox_callback_table;
