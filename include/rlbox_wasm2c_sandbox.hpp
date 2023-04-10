@@ -463,7 +463,7 @@ public:
    * @return true when sandbox is successfully created. false when infallible is set to false and sandbox was not successfully created. If infallible is set to true, this function will never return false.
    */
   inline bool impl_create_sandbox(
-    bool infallible = true, w2c_mem_capacity* custom_capacity = nullptr)
+    bool infallible = true, const w2c_mem_capacity* custom_capacity = nullptr)
   {
     FALLIBLE_DYNAMIC_CHECK(infallible, instance_initialized == false, "Sandbox already initialized");
 
