@@ -13,7 +13,10 @@
 #define TestType rlbox::rlbox_wasm2c_sandbox
 
 // NOLINTNEXTLINE
-#define CreateSandbox(sandbox) sandbox.create_sandbox(true /* abort on fail */, 8 * 1024 * 1024 /* max heap */)
+#define CreateSandbox(sandbox) { \
+  w2c_mem_capacity custom_capacity = get_valid_wasm2c_memory_capacity(16 * 1024 * 1024 + 1/* min capacity */, true /* is_mem_32 */); \
+  sandbox.create_sandbox(true /* abort on fail */, &custom_capacity); \
+}
 
 // NOLINTNEXTLINE
 #include "test_sandbox_glue.inc.cpp"

@@ -426,33 +426,6 @@ private:
     return power;
   }
 
-public:
-
-#define WASM_PAGE_SIZE 65536
-#define WASM_MAX_HEAP (static_cast<uint64_t>(1) << 32)
-  static uint64_t rlbox_wasm2c_get_adjusted_heap_size(uint64_t heap_size)
-  {
-    if (heap_size == 0){
-      return 0;
-    }
-
-    if(heap_size <= WASM_PAGE_SIZE) {
-      return WASM_PAGE_SIZE;
-    } else if (heap_size >= WASM_MAX_HEAP) {
-      return WASM_MAX_HEAP;
-    }
-
-    return next_power_of_two(static_cast<uint32_t>(heap_size));
-  }
-
-  static uint64_t rlbox_wasm2c_get_heap_page_count(uint64_t heap_size)
-  {
-    const uint64_t pages = heap_size / WASM_PAGE_SIZE;
-    return pages;
-  }
-#undef WASM_MAX_HEAP
-#undef WASM_PAGE_SIZE
-
 protected:
 
   #define rlbox_wasm2c_sandbox_lookup_symbol(func_name)                            \
@@ -486,11 +459,11 @@ public:
    * @brief creates the Wasm sandbox from the given shared library
    *
    * @param infallible if set to true, the sandbox aborts on failure. If false, the sandbox returns creation status as a return value
-   * @param override_max_heap_size optional override of the maximum size of the wasm heap allowed for this sandbox instance. When the value is zero, platform defaults are used. Non-zero values are rounded to max(64k, next power of 2).
+   * @param custom_capacity allows optionally overriding the platform-specified maximum size of the wasm heap allowed for this sandbox instance.
    * @return true when sandbox is successfully created. false when infallible is set to false and sandbox was not successfully created. If infallible is set to true, this function will never return false.
    */
   inline bool impl_create_sandbox(
-    bool infallible = true, uint64_t override_max_heap_size = 0)
+    bool infallible = true, w2c_mem_capacity* custom_capacity = nullptr)
   {
     FALLIBLE_DYNAMIC_CHECK(infallible, instance_initialized == false, "Sandbox already initialized");
 
@@ -499,11 +472,11 @@ public:
       minwasi_init();
     });
 
-    override_max_heap_size = rlbox_wasm2c_get_adjusted_heap_size(override_max_heap_size);
-    const uint64_t override_max_wasm_pages = rlbox_wasm2c_get_heap_page_count(override_max_heap_size);
-    FALLIBLE_DYNAMIC_CHECK(infallible, override_max_wasm_pages <= 65536, "Wasm allows a max heap size of 4GB");
+    if (custom_capacity) {
+      FALLIBLE_DYNAMIC_CHECK(infallible, custom_capacity->is_valid, "Invalid capacity");
+    }
 
-    sandbox_memory_info = create_wasm2c_memory(*RLBOX_WASM_MODULE_TYPE_CURR::initial_memory_pages, override_max_wasm_pages);
+    sandbox_memory_info = create_wasm2c_memory(*RLBOX_WASM_MODULE_TYPE_CURR::initial_memory_pages, custom_capacity);
     FALLIBLE_DYNAMIC_CHECK(infallible, sandbox_memory_info.data != nullptr, "Could not allocate a heap for the wasm2c sandbox");
 
     FALLIBLE_DYNAMIC_CHECK(infallible, *RLBOX_WASM_MODULE_TYPE_CURR::is_memory_64 == 0, "Does not support Wasm with memory64");
