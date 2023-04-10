@@ -79,6 +79,30 @@ static uint64_t compute_heap_reserve_space(uint32_t chosen_max_pages) {
   return heap_reserve_size;
 }
 
+uint64_t get_valid_wasm2c_memory_capacity(uint64_t min_capacity, bool is_mem_32) {
+  const uint64_t err_val = 0;
+
+  // We do not handle memory 64
+  if (!is_mem_32) {
+    return err_val;
+  }
+
+  const uint64_t default_capacity = ((uint64_t)WASM_HEAP_DEFAULT_MAX_PAGES) * WASM_PAGE_SIZE;
+
+  if (min_capacity <= default_capacity) {
+    // Handle 0 case and small values
+    return default_capacity;
+  } else if (min_capacity > UINT32_MAX) {
+    // Handle out of range values
+    return err_val;
+  }
+
+  const uint64_t page_size_minus_1 = WASM_PAGE_SIZE - 1;
+  // Get a multiple of page_size greater than min_capacity
+  const uint64_t valid_min_capacity = ((min_capacity - 1)|page_size_minus_1) + 1;
+  return valid_min_capacity;
+}
+
 wasm_rt_memory_t create_wasm2c_memory(uint32_t initial_pages, uint64_t override_max_wasm_pages) {
   const uint32_t byte_length = initial_pages * WASM_PAGE_SIZE;
   const uint64_t chosen_max_pages = override_max_wasm_pages? override_max_wasm_pages : WASM_HEAP_DEFAULT_MAX_PAGES;
