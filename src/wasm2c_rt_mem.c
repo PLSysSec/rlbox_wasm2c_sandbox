@@ -106,7 +106,7 @@ w2c_mem_capacity get_valid_wasm2c_memory_capacity(uint64_t min_capacity, bool is
   return ret;
 }
 
-wasm_rt_memory_t create_wasm2c_memory(uint32_t initial_pages, w2c_mem_capacity* custom_capacity) {
+wasm_rt_memory_t create_wasm2c_memory(uint32_t initial_pages, const w2c_mem_capacity* custom_capacity) {
 
   if (custom_capacity && !custom_capacity->is_valid) {
     wasm_rt_memory_t ret = {0};
