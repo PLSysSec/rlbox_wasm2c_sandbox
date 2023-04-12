@@ -10,21 +10,21 @@
 #include <time.h>
 
 #ifdef _WIN32
-#include <windows.h>
+#  include <windows.h>
 #endif
 
 #if defined(__APPLE__) && defined(__MACH__)
 // Macs priors to OSX 10.12 don't have the clock functions. So we will use mac
 // specific options
-#include <mach/mach_time.h>
-#include <sys/time.h>
+#  include <mach/mach_time.h>
+#  include <sys/time.h>
 #endif
 
-#include "wasm2c_rt_minwasi.h"
 #include "wasm-rt.h"
+#include "wasm2c_rt_minwasi.h"
 
 #ifndef WASM_RT_CORE_TYPES_DEFINED
-#define WASM_RT_CORE_TYPES_DEFINED
+#  define WASM_RT_CORE_TYPES_DEFINED
 typedef uint8_t u8;
 typedef int8_t s8;
 typedef uint16_t u16;
@@ -51,38 +51,41 @@ typedef double f64;
 
 #define WASI_MEMACCESS(mem, a) ((void*)&(mem->data[a]))
 
-#define WASI_MEMCHECK_SIZE(mem, a, sz)       \
-  if (UNLIKELY(((u64)(a)) + sz > mem->size)) \
+#define WASI_MEMCHECK_SIZE(mem, a, sz)                                         \
+  if (UNLIKELY(((u64)(a)) + sz > mem->size))                                   \
   TRAP(OOB)
 
-#define WASI_CHECK_COPY(mem, a, sz, src)     \
-  do {                                       \
-    WASI_MEMCHECK_SIZE(mem, a, sz);          \
-    memcpy(WASI_MEMACCESS(mem, a), src, sz); \
+#define WASI_CHECK_COPY(mem, a, sz, src)                                       \
+  do {                                                                         \
+    WASI_MEMCHECK_SIZE(mem, a, sz);                                            \
+    memcpy(WASI_MEMACCESS(mem, a), src, sz);                                   \
   } while (0)
 
 #define WASI_MEMCHECK(mem, a, t) WASI_MEMCHECK_SIZE(mem, a, sizeof(t))
 
-#define DEFINE_WASI_LOAD(name, t1, t2, t3)                  \
-  static inline t3 name(wasm_rt_memory_t* mem, u64 addr) {  \
-    WASI_MEMCHECK(mem, addr, t1);                           \
-    t1 result;                                              \
-    memcpy(&result, WASI_MEMACCESS(mem, addr), sizeof(t1)); \
-    return (t3)(t2)result;                                  \
+#define DEFINE_WASI_LOAD(name, t1, t2, t3)                                     \
+  static inline t3 name(wasm_rt_memory_t* mem, u64 addr)                       \
+  {                                                                            \
+    WASI_MEMCHECK(mem, addr, t1);                                              \
+    t1 result;                                                                 \
+    memcpy(&result, WASI_MEMACCESS(mem, addr), sizeof(t1));                    \
+    return (t3)(t2)result;                                                     \
   }
 
-#define DEFINE_WASI_STORE(name, t1, t2)                                \
-  static inline void name(wasm_rt_memory_t* mem, u64 addr, t2 value) { \
-    WASI_MEMCHECK(mem, addr, t1);                                      \
-    t1 wrapped = (t1)value;                                            \
-    memcpy(WASI_MEMACCESS(mem, addr), &wrapped, sizeof(t1));           \
+#define DEFINE_WASI_STORE(name, t1, t2)                                        \
+  static inline void name(wasm_rt_memory_t* mem, u64 addr, t2 value)           \
+  {                                                                            \
+    WASI_MEMCHECK(mem, addr, t1);                                              \
+    t1 wrapped = (t1)value;                                                    \
+    memcpy(WASI_MEMACCESS(mem, addr), &wrapped, sizeof(t1));                   \
   }
 
 DEFINE_WASI_LOAD(wasm_i32_load, u32, u32, u32);
 DEFINE_WASI_STORE(wasm_i32_store, u32, u32);
 DEFINE_WASI_STORE(wasm_i64_store, u64, u64);
 
-static bool safe_add_u32(u32* ret, u32 a, u32 b) {
+static bool safe_add_u32(u32* ret, u32 a, u32 b)
+{
   if (UINT32_MAX - a < b) {
     *ret = 0;
     return false;
@@ -178,9 +181,9 @@ static bool safe_add_u32(u32* ret, u32 a, u32 b) {
 // Syscall not implemented
 #define WASI_NOSYS_ERROR 53
 
-#define WASI_RET_ERR_ON_FAIL(exp) \
-  if (!(exp)) {                   \
-    return WASI_INVAL_ERROR;      \
+#define WASI_RET_ERR_ON_FAIL(exp)                                              \
+  if (!(exp)) {                                                                \
+    return WASI_INVAL_ERROR;                                                   \
   }
 
 /////////////////////////////////////////////////////////////
@@ -189,14 +192,16 @@ static bool safe_add_u32(u32* ret, u32 a, u32 b) {
 
 #if defined(_WIN32)
 
-typedef struct {
+typedef struct
+{
   LARGE_INTEGER counts_per_sec; /* conversion factor */
 } wasi_win_clock_info_t;
 
 static wasi_win_clock_info_t g_wasi_win_clock_info;
 static int g_os_data_initialized = 0;
 
-static void os_clock_init() {
+static void os_clock_init()
+{
   // From here:
   // https://stackoverflow.com/questions/5404277/porting-clock-gettime-to-windows/38212960#38212960
   if (QueryPerformanceFrequency(&g_wasi_win_clock_info.counts_per_sec) == 0) {
@@ -205,13 +210,14 @@ static void os_clock_init() {
   g_os_data_initialized = 1;
 }
 
-static void os_clock_init_instance(void** clock_data_pointer) {
+static void os_clock_init_instance(void** clock_data_pointer)
+{
   if (!g_os_data_initialized) {
     os_clock_init();
   }
 
   wasi_win_clock_info_t* alloc =
-      (wasi_win_clock_info_t*)malloc(sizeof(wasi_win_clock_info_t));
+    (wasi_win_clock_info_t*)malloc(sizeof(wasi_win_clock_info_t));
   if (!alloc) {
     TRAP(WASI);
   }
@@ -219,7 +225,8 @@ static void os_clock_init_instance(void** clock_data_pointer) {
   *clock_data_pointer = alloc;
 }
 
-static void os_clock_cleanup_instance(void** clock_data_pointer) {
+static void os_clock_cleanup_instance(void** clock_data_pointer)
+{
   if (*clock_data_pointer == 0) {
     free(*clock_data_pointer);
     *clock_data_pointer = 0;
@@ -228,7 +235,8 @@ static void os_clock_cleanup_instance(void** clock_data_pointer) {
 
 static int os_clock_gettime(void* clock_data,
                             int clock_id,
-                            struct timespec* out_struct) {
+                            struct timespec* out_struct)
+{
   wasi_win_clock_info_t* alloc = (wasi_win_clock_info_t*)clock_data;
 
   LARGE_INTEGER count;
@@ -239,19 +247,20 @@ static int os_clock_gettime(void* clock_data,
     return -1;
   }
 
-#define BILLION 1000000000LL
+#  define BILLION 1000000000LL
   out_struct->tv_sec = count.QuadPart / alloc->counts_per_sec.QuadPart;
   out_struct->tv_nsec =
-      ((count.QuadPart % alloc->counts_per_sec.QuadPart) * BILLION) /
-      alloc->counts_per_sec.QuadPart;
-#undef BILLION
+    ((count.QuadPart % alloc->counts_per_sec.QuadPart) * BILLION) /
+    alloc->counts_per_sec.QuadPart;
+#  undef BILLION
 
   return 0;
 }
 
 static int os_clock_getres(void* clock_data,
                            int clock_id,
-                           struct timespec* out_struct) {
+                           struct timespec* out_struct)
+{
   (void)clock_id;
   out_struct->tv_sec = 0;
   out_struct->tv_nsec = 1000;
@@ -260,7 +269,8 @@ static int os_clock_getres(void* clock_data,
 
 #elif defined(__APPLE__) && defined(__MACH__)
 
-typedef struct {
+typedef struct
+{
   mach_timebase_info_data_t timebase; /* numer = 0, denom = 0 */
   struct timespec inittime; /* nanoseconds since 1-Jan-1970 to init() */
   uint64_t initclock;       /* ticks since boot to init() */
@@ -269,7 +279,8 @@ typedef struct {
 static wasi_mac_clock_info_t g_wasi_mac_clock_info;
 static int g_os_data_initialized = 0;
 
-static void os_clock_init() {
+static void os_clock_init()
+{
   // From here:
   // https://stackoverflow.com/questions/5167269/clock-gettime-alternative-in-mac-os-x/21352348#21352348
   if (mach_timebase_info(&g_wasi_mac_clock_info.timebase) != 0) {
@@ -290,13 +301,14 @@ static void os_clock_init() {
   g_os_data_initialized = 1;
 }
 
-static void os_clock_init_instance(void** clock_data_pointer) {
+static void os_clock_init_instance(void** clock_data_pointer)
+{
   if (!g_os_data_initialized) {
     os_clock_init();
   }
 
   wasi_mac_clock_info_t* alloc =
-      (wasi_mac_clock_info_t*)malloc(sizeof(wasi_mac_clock_info_t));
+    (wasi_mac_clock_info_t*)malloc(sizeof(wasi_mac_clock_info_t));
   if (!alloc) {
     TRAP(WASI);
   }
@@ -304,7 +316,8 @@ static void os_clock_init_instance(void** clock_data_pointer) {
   *clock_data_pointer = alloc;
 }
 
-static void os_clock_cleanup_instance(void** clock_data_pointer) {
+static void os_clock_cleanup_instance(void** clock_data_pointer)
+{
   if (*clock_data_pointer == 0) {
     free(*clock_data_pointer);
     *clock_data_pointer = 0;
@@ -313,7 +326,8 @@ static void os_clock_cleanup_instance(void** clock_data_pointer) {
 
 static int os_clock_gettime(void* clock_data,
                             int clock_id,
-                            struct timespec* out_struct) {
+                            struct timespec* out_struct)
+{
   int ret = 0;
   wasi_mac_clock_info_t* alloc = (wasi_mac_clock_info_t*)clock_data;
 
@@ -328,19 +342,20 @@ static int os_clock_gettime(void* clock_data,
                   (uint64_t)(alloc->timebase.denom);
   *out_struct = alloc->inittime;
 
-#define BILLION 1000000000L
+#  define BILLION 1000000000L
   out_struct->tv_sec += nano / BILLION;
   out_struct->tv_nsec += nano % BILLION;
   // normalize
   out_struct->tv_sec += out_struct->tv_nsec / BILLION;
   out_struct->tv_nsec = out_struct->tv_nsec % BILLION;
-#undef BILLION
+#  undef BILLION
   return ret;
 }
 
 static int os_clock_getres(void* clock_data,
                            int clock_id,
-                           struct timespec* out_struct) {
+                           struct timespec* out_struct)
+{
   int ret = 0;
   (void)clock_id;
   out_struct->tv_sec = 0;
@@ -352,17 +367,20 @@ static int os_clock_getres(void* clock_data,
 
 static void os_clock_init() {}
 
-static void os_clock_init_instance(void** clock_data_pointer) {
+static void os_clock_init_instance(void** clock_data_pointer)
+{
   (void)clock_data_pointer;
 }
 
-static void os_clock_cleanup_instance(void** clock_data_pointer) {
+static void os_clock_cleanup_instance(void** clock_data_pointer)
+{
   (void)clock_data_pointer;
 }
 
 static int os_clock_gettime(void* clock_data,
                             int clock_id,
-                            struct timespec* out_struct) {
+                            struct timespec* out_struct)
+{
   (void)clock_data;
   int ret = clock_gettime(clock_id, out_struct);
   return ret;
@@ -370,7 +388,8 @@ static int os_clock_gettime(void* clock_data,
 
 static int os_clock_getres(void* clock_data,
                            int clock_id,
-                           struct timespec* out_struct) {
+                           struct timespec* out_struct)
+{
   (void)clock_data;
   int ret = clock_getres(clock_id, out_struct);
   return ret;
@@ -383,7 +402,8 @@ static int os_clock_getres(void* clock_data,
 #define WASM_CLOCK_PROCESS_CPUTIME 2
 #define WASM_CLOCK_THREAD_CPUTIME_ID 3
 
-static int check_clock(u32 clock_id) {
+static int check_clock(u32 clock_id)
+{
   return clock_id == WASM_CLOCK_REALTIME || clock_id == WASM_CLOCK_MONOTONIC ||
          clock_id == WASM_CLOCK_PROCESS_CPUTIME ||
          clock_id == WASM_CLOCK_THREAD_CPUTIME_ID;
@@ -392,10 +412,11 @@ static int check_clock(u32 clock_id) {
 // out is a pointer to a u64 timestamp in nanoseconds
 // https://github.com/WebAssembly/WASI/blob/main/phases/snapshot/docs.md#-timestamp-u64
 u32 w2c_wasi__snapshot__preview1_clock_time_get(
-    w2c_wasi__snapshot__preview1* wasi_data,
-    u32 clock_id,
-    u64 precision,
-    u32 out) {
+  w2c_wasi__snapshot__preview1* wasi_data,
+  u32 clock_id,
+  u64 precision,
+  u32 out)
+{
   if (!check_clock(clock_id)) {
     return WASI_INVAL_ERROR;
   }
@@ -403,15 +424,16 @@ u32 w2c_wasi__snapshot__preview1_clock_time_get(
   struct timespec out_struct;
   int ret = os_clock_gettime(wasi_data->clock_data, clock_id, &out_struct);
   u64 result =
-      ((u64)out_struct.tv_sec) * 1000 * 1000 * 1000 + ((u64)out_struct.tv_nsec);
+    ((u64)out_struct.tv_sec) * 1000 * 1000 * 1000 + ((u64)out_struct.tv_nsec);
   wasm_i64_store(wasi_data->instance_memory, out, result);
   return ret;
 }
 
 u32 w2c_wasi__snapshot__preview1_clock_res_get(
-    w2c_wasi__snapshot__preview1* wasi_data,
-    u32 clock_id,
-    u32 out) {
+  w2c_wasi__snapshot__preview1* wasi_data,
+  u32 clock_id,
+  u32 out)
+{
   if (!check_clock(clock_id)) {
     return WASI_INVAL_ERROR;
   }
@@ -419,7 +441,7 @@ u32 w2c_wasi__snapshot__preview1_clock_res_get(
   struct timespec out_struct;
   int ret = os_clock_getres(wasi_data->clock_data, clock_id, &out_struct);
   u64 result =
-      ((u64)out_struct.tv_sec) * 1000 * 1000 * 1000 + ((u64)out_struct.tv_nsec);
+    ((u64)out_struct.tv_sec) * 1000 * 1000 * 1000 + ((u64)out_struct.tv_nsec);
   wasm_i64_store(wasi_data->instance_memory, out, result);
   return ret;
 }
@@ -435,9 +457,10 @@ u32 w2c_wasi__snapshot__preview1_clock_res_get(
 #define WASM_STDERR 2
 
 u32 w2c_wasi__snapshot__preview1_fd_prestat_get(
-    w2c_wasi__snapshot__preview1* wasi_data,
-    u32 fd,
-    u32 prestat) {
+  w2c_wasi__snapshot__preview1* wasi_data,
+  u32 fd,
+  u32 prestat)
+{
   if (fd == WASM_STDIN || fd == WASM_STDOUT || fd == WASM_STDERR) {
     return WASI_PERM_ERROR;
   }
@@ -445,11 +468,12 @@ u32 w2c_wasi__snapshot__preview1_fd_prestat_get(
 }
 
 u32 w2c_wasi__snapshot__preview1_fd_write(
-    w2c_wasi__snapshot__preview1* wasi_data,
-    u32 fd,
-    u32 iov,
-    u32 iovcnt,
-    u32 pnum) {
+  w2c_wasi__snapshot__preview1* wasi_data,
+  u32 fd,
+  u32 iov,
+  u32 iovcnt,
+  u32 pnum)
+{
   if (fd != WASM_STDOUT && fd != WASM_STDERR) {
     return WASI_BADF_ERROR;
   }
@@ -461,9 +485,10 @@ u32 w2c_wasi__snapshot__preview1_fd_write(
 
     WASI_MEMCHECK_SIZE(wasi_data->instance_memory, ptr, len);
 
-    size_t result =
-        fwrite(WASI_MEMACCESS(wasi_data->instance_memory, ptr), 1 /* size */,
-               len /* n */, fd == WASM_STDOUT ? stdout : stderr);
+    size_t result = fwrite(WASI_MEMACCESS(wasi_data->instance_memory, ptr),
+                           1 /* size */,
+                           len /* n */,
+                           fd == WASM_STDOUT ? stdout : stderr);
 
     // Guaranteed by fwrite
     assert(result <= len);
@@ -481,11 +506,12 @@ u32 w2c_wasi__snapshot__preview1_fd_write(
 }
 
 u32 w2c_wasi__snapshot__preview1_fd_read(
-    w2c_wasi__snapshot__preview1* wasi_data,
-    u32 fd,
-    u32 iov,
-    u32 iovcnt,
-    u32 pnum) {
+  w2c_wasi__snapshot__preview1* wasi_data,
+  u32 fd,
+  u32 iov,
+  u32 iovcnt,
+  u32 pnum)
+{
   if (fd != WASM_STDIN) {
     return WASI_BADF_ERROR;
   }
@@ -497,7 +523,9 @@ u32 w2c_wasi__snapshot__preview1_fd_read(
 
     WASI_MEMCHECK_SIZE(wasi_data->instance_memory, ptr, len);
     size_t result = fread(WASI_MEMACCESS(wasi_data->instance_memory, ptr),
-                          1 /* size */, len /* n */, stdin);
+                          1 /* size */,
+                          len /* n */,
+                          stdin);
 
     // Guaranteed by fwrite
     assert(result <= len);
@@ -505,7 +533,7 @@ u32 w2c_wasi__snapshot__preview1_fd_read(
     WASI_RET_ERR_ON_FAIL(safe_add_u32(&num, num, (u32)result));
 
     if (((u32)result) != len) {
-      break;  // nothing more to read
+      break; // nothing more to read
     }
   }
   wasm_i32_store(wasi_data->instance_memory, pnum, num);
@@ -523,7 +551,8 @@ static u32 strings_sizes_get(wasm_rt_memory_t* instance_memory,
                              u32 p_str_count,
                              u32 p_str_buff_size,
                              u32 string_count,
-                             const char** strings) {
+                             const char** strings)
+{
   u32 chosen_count = string_count;
   if (chosen_count > ARGV_AND_ENV_LIMIT) {
     chosen_count = ARGV_AND_ENV_LIMIT;
@@ -540,7 +569,7 @@ static u32 strings_sizes_get(wasm_rt_memory_t* instance_memory,
     u32 len_plus_nullchar = len + 1;
 
     WASI_RET_ERR_ON_FAIL(
-        safe_add_u32(&curr_buf_size, curr_buf_size, len_plus_nullchar));
+      safe_add_u32(&curr_buf_size, curr_buf_size, len_plus_nullchar));
   }
 
   wasm_i32_store(instance_memory, p_str_count, chosen_count);
@@ -553,7 +582,8 @@ static u32 strings_get(wasm_rt_memory_t* instance_memory,
                        u32 p_str_arr,
                        u32 p_str_buf,
                        u32 string_count,
-                       const char** strings) {
+                       const char** strings)
+{
   u32 chosen_count = string_count;
   if (chosen_count > ARGV_AND_ENV_LIMIT) {
     chosen_count = ARGV_AND_ENV_LIMIT;
@@ -569,7 +599,7 @@ static u32 strings_get(wasm_rt_memory_t* instance_memory,
 
     u32 target_buf_curr_ref;
     WASI_RET_ERR_ON_FAIL(
-        safe_add_u32(&target_buf_curr_ref, p_str_buf, curr_buf_loc));
+      safe_add_u32(&target_buf_curr_ref, p_str_buf, curr_buf_loc));
 
     wasm_i32_store(instance_memory, target_argv_i_ref, target_buf_curr_ref);
 
@@ -581,46 +611,65 @@ static u32 strings_get(wasm_rt_memory_t* instance_memory,
     u32 len = (u32)original_len;
     u32 len_plus_nullchar = len + 1;
 
-    WASI_CHECK_COPY(instance_memory, target_buf_curr_ref, len_plus_nullchar,
-                    strings[i]);
+    WASI_CHECK_COPY(
+      instance_memory, target_buf_curr_ref, len_plus_nullchar, strings[i]);
     // Implement: curr_buf_loc += strlen(p_str_buf[curr_buf_loc])
     WASI_RET_ERR_ON_FAIL(
-        safe_add_u32(&curr_buf_loc, curr_buf_loc, len_plus_nullchar));
+      safe_add_u32(&curr_buf_loc, curr_buf_loc, len_plus_nullchar));
   }
   return WASI_SUCCESS;
 }
 
 u32 w2c_wasi__snapshot__preview1_args_sizes_get(
-    w2c_wasi__snapshot__preview1* wasi_data,
-    u32 p_argc,
-    u32 p_argv_buf_size) {
-  return strings_sizes_get(wasi_data->instance_memory, "main", p_argc, p_argv_buf_size,
-                           wasi_data->main_argc, wasi_data->main_argv);
+  w2c_wasi__snapshot__preview1* wasi_data,
+  u32 p_argc,
+  u32 p_argv_buf_size)
+{
+  return strings_sizes_get(wasi_data->instance_memory,
+                           "main",
+                           p_argc,
+                           p_argv_buf_size,
+                           wasi_data->main_argc,
+                           wasi_data->main_argv);
 }
 
 u32 w2c_wasi__snapshot__preview1_args_get(
-    w2c_wasi__snapshot__preview1* wasi_data,
-    u32 p_argv,
-    u32 p_argv_buf) {
-  return strings_get(wasi_data->instance_memory, "main", p_argv, p_argv_buf,
-                     wasi_data->main_argc, wasi_data->main_argv);
+  w2c_wasi__snapshot__preview1* wasi_data,
+  u32 p_argv,
+  u32 p_argv_buf)
+{
+  return strings_get(wasi_data->instance_memory,
+                     "main",
+                     p_argv,
+                     p_argv_buf,
+                     wasi_data->main_argc,
+                     wasi_data->main_argv);
 }
 
 u32 w2c_wasi__snapshot__preview1_environ_sizes_get(
-    w2c_wasi__snapshot__preview1* wasi_data,
-    u32 p_env_count,
-    u32 p_env_buf_size) {
-  return strings_sizes_get(wasi_data->instance_memory, "env", p_env_count,
-                           p_env_buf_size, wasi_data->env_count,
+  w2c_wasi__snapshot__preview1* wasi_data,
+  u32 p_env_count,
+  u32 p_env_buf_size)
+{
+  return strings_sizes_get(wasi_data->instance_memory,
+                           "env",
+                           p_env_count,
+                           p_env_buf_size,
+                           wasi_data->env_count,
                            wasi_data->env);
 }
 
 u32 w2c_wasi__snapshot__preview1_environ_get(
-    w2c_wasi__snapshot__preview1* wasi_data,
-    u32 p_env,
-    u32 p_env_buf) {
-  return strings_get(wasi_data->instance_memory, "env", p_env, p_env_buf,
-                     wasi_data->env_count, wasi_data->env);
+  w2c_wasi__snapshot__preview1* wasi_data,
+  u32 p_env,
+  u32 p_env_buf)
+{
+  return strings_get(wasi_data->instance_memory,
+                     "env",
+                     p_env,
+                     p_env_buf,
+                     wasi_data->env_count,
+                     wasi_data->env);
 }
 
 /////////////////////////////////////////////////////////////
@@ -628,8 +677,9 @@ u32 w2c_wasi__snapshot__preview1_environ_get(
 /////////////////////////////////////////////////////////////
 
 void w2c_wasi__snapshot__preview1_proc_exit(
-    w2c_wasi__snapshot__preview1* wasi_data,
-    u32 x) {
+  w2c_wasi__snapshot__preview1* wasi_data,
+  u32 x)
+{
 #ifdef WASM2C_WASI_TRAP_ON_EXIT
   TRAP(WASI);
 #else
@@ -641,10 +691,8 @@ void w2c_wasi__snapshot__preview1_proc_exit(
 ////////////// Unsupported WASI APIs
 /////////////////////////////////////////////////////////////
 
-#define STUB_IMPORT_IMPL(ret, name, params) \
-  ret name params {                         \
-    return WASI_NOSYS_ERROR;                \
-  }
+#define STUB_IMPORT_IMPL(ret, name, params)                                    \
+  ret name params { return WASI_NOSYS_ERROR; }
 
 // clang-format off
 
@@ -726,14 +774,17 @@ STUB_IMPORT_IMPL(u32, w2c_wasi__snapshot__preview1_sock_shutdown,
 /////////////////////////////////////////////////////////////
 ////////// Misc
 /////////////////////////////////////////////////////////////
-void minwasi_init() {
+void minwasi_init()
+{
   os_clock_init();
 }
 
-void minwasi_init_instance(w2c_wasi__snapshot__preview1* wasi_data) {
+void minwasi_init_instance(w2c_wasi__snapshot__preview1* wasi_data)
+{
   os_clock_init_instance(&(wasi_data->clock_data));
 }
 
-void minwasi_cleanup_instance(w2c_wasi__snapshot__preview1* wasi_data) {
+void minwasi_cleanup_instance(w2c_wasi__snapshot__preview1* wasi_data)
+{
   os_clock_cleanup_instance(&(wasi_data->clock_data));
 }

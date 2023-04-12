@@ -9,24 +9,26 @@
 #include "wasm-rt.h"
 
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 
-typedef struct w2c_wasi__snapshot__preview1 {
-  wasm_rt_memory_t* instance_memory;
+  typedef struct w2c_wasi__snapshot__preview1
+  {
+    wasm_rt_memory_t* instance_memory;
 
-  uint32_t main_argc;
-  const char** main_argv;
+    uint32_t main_argc;
+    const char** main_argv;
 
-  uint32_t env_count;
-  const char** env;
+    uint32_t env_count;
+    const char** env;
 
-  void* clock_data;
-} w2c_wasi__snapshot__preview1;
+    void* clock_data;
+  } w2c_wasi__snapshot__preview1;
 
-void minwasi_init();
-void minwasi_init_instance(w2c_wasi__snapshot__preview1* wasi_data);
-void minwasi_cleanup_instance(w2c_wasi__snapshot__preview1* wasi_data);
+  void minwasi_init();
+  void minwasi_init_instance(w2c_wasi__snapshot__preview1* wasi_data);
+  void minwasi_cleanup_instance(w2c_wasi__snapshot__preview1* wasi_data);
 
 #ifdef __cplusplus
 }

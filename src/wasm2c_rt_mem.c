@@ -7,7 +7,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-enum {
+enum
+{
   MMAP_PROT_NONE = 0,
   MMAP_PROT_READ = 1,
   MMAP_PROT_WRITE = 2,
@@ -15,7 +16,8 @@ enum {
 };
 
 /* Memory map flags */
-enum {
+enum
+{
   MMAP_MAP_NONE = 0,
   /* Put the mapping into 0 to 2 G, supported only on x86_64 */
   MMAP_MAP_32BIT = 1,
@@ -34,21 +36,26 @@ static void os_munmap(void* addr, size_t size);
 static int os_mprotect(void* addr, size_t size, int prot);
 // Like mmap but returns an aligned region
 static void* os_mmap_aligned(void* addr,
-                      size_t requested_length,
-                      int prot,
-                      int flags,
-                      size_t alignment,
-                      size_t alignment_offset);
+                             size_t requested_length,
+                             int prot,
+                             int flags,
+                             size_t alignment,
+                             size_t alignment_offset);
 
 // Commits and sets the permissions on an already allocated memory region
 // Returns 0 on success, non zero on failure.
-static int os_mmap_commit(void* curr_heap_end_pointer, size_t expanded_size, int prot);
+static int os_mmap_commit(void* curr_heap_end_pointer,
+                          size_t expanded_size,
+                          int prot);
 
-wasm_rt_memory_t* w2c_env_memory(struct w2c_env* instance) {
+wasm_rt_memory_t* w2c_env_memory(struct w2c_env* instance)
+{
   return instance->sandbox_memory_info;
 }
 
-wasm_rt_funcref_table_t* w2c_env_0x5F_indirect_function_table(struct w2c_env* instance) {
+wasm_rt_funcref_table_t* w2c_env_0x5F_indirect_function_table(
+  struct w2c_env* instance)
+{
   return instance->sandbox_callback_table;
 }
 
@@ -57,41 +64,51 @@ wasm_rt_funcref_table_t* w2c_env_0x5F_indirect_function_table(struct w2c_env* in
 
 #if UINTPTR_MAX == 0xffffffffffffffff
 // Guard page of 4GiB
-#define WASM_HEAP_GUARD_PAGE_SIZE 0x100000000ull
+#  define WASM_HEAP_GUARD_PAGE_SIZE 0x100000000ull
 // Heap aligned to 4GB
-#define WASM_HEAP_ALIGNMENT 0x100000000ull
+#  define WASM_HEAP_ALIGNMENT 0x100000000ull
 // By default max heap is 4GB
-#define WASM_HEAP_DEFAULT_MAX_PAGES 65536
+#  define WASM_HEAP_DEFAULT_MAX_PAGES 65536
 #elif UINTPTR_MAX == 0xffffffff
 // No guard pages
-#define WASM_HEAP_GUARD_PAGE_SIZE 0
+#  define WASM_HEAP_GUARD_PAGE_SIZE 0
 // Unaligned heap
-#define WASM_HEAP_ALIGNMENT 0
+#  define WASM_HEAP_ALIGNMENT 0
 // Default max heap is 16MB
-#define WASM_HEAP_DEFAULT_MAX_PAGES 256
+#  define WASM_HEAP_DEFAULT_MAX_PAGES 256
 #else
-#error "Unknown pointer size"
+#  error "Unknown pointer size"
 #endif
 
-static uint64_t compute_heap_reserve_space(uint32_t chosen_max_pages) {
+static uint64_t compute_heap_reserve_space(uint32_t chosen_max_pages)
+{
   const uint64_t heap_reserve_size =
-      ((uint64_t)chosen_max_pages) * WASM_PAGE_SIZE + WASM_HEAP_GUARD_PAGE_SIZE;
+    ((uint64_t)chosen_max_pages) * WASM_PAGE_SIZE + WASM_HEAP_GUARD_PAGE_SIZE;
   return heap_reserve_size;
 }
 
-w2c_mem_capacity get_valid_wasm2c_memory_capacity(uint64_t min_capacity, bool is_mem_32) {
-  const w2c_mem_capacity err_val = { false /* is_valid */, false /* is_mem_32 */, 0 /* max_pages */, 0 /* max_size */};
+w2c_mem_capacity get_valid_wasm2c_memory_capacity(uint64_t min_capacity,
+                                                  bool is_mem_32)
+{
+  const w2c_mem_capacity err_val = { false /* is_valid */,
+                                     false /* is_mem_32 */,
+                                     0 /* max_pages */,
+                                     0 /* max_size */ };
 
   // We do not handle memory 64
   if (!is_mem_32) {
     return err_val;
   }
 
-  const uint64_t default_capacity = ((uint64_t)WASM_HEAP_DEFAULT_MAX_PAGES) * WASM_PAGE_SIZE;
+  const uint64_t default_capacity =
+    ((uint64_t)WASM_HEAP_DEFAULT_MAX_PAGES) * WASM_PAGE_SIZE;
 
   if (min_capacity <= default_capacity) {
     // Handle 0 case and small values
-    const w2c_mem_capacity ret = { true /* is_valid */, true /* is_mem_32 */, WASM_HEAP_DEFAULT_MAX_PAGES /* max_pages */, default_capacity /* max_size */};
+    const w2c_mem_capacity ret = { true /* is_valid */,
+                                   true /* is_mem_32 */,
+                                   WASM_HEAP_DEFAULT_MAX_PAGES /* max_pages */,
+                                   default_capacity /* max_size */ };
     return ret;
   } else if (min_capacity > UINT32_MAX) {
     // Handle out of range values
@@ -102,28 +119,41 @@ w2c_mem_capacity get_valid_wasm2c_memory_capacity(uint64_t min_capacity, bool is
   // Get number of pages greater than min_capacity
   const uint64_t capacity_pages = ((min_capacity - 1) / page_size_minus_1) + 1;
 
-  const w2c_mem_capacity ret = { true /* is_valid */, true /* is_mem_32 */, capacity_pages /* max_pages */, capacity_pages * WASM_PAGE_SIZE /* max_size */};
+  const w2c_mem_capacity ret = { true /* is_valid */,
+                                 true /* is_mem_32 */,
+                                 capacity_pages /* max_pages */,
+                                 capacity_pages *
+                                   WASM_PAGE_SIZE /* max_size */ };
   return ret;
 }
 
-wasm_rt_memory_t create_wasm2c_memory(uint32_t initial_pages, const w2c_mem_capacity* custom_capacity) {
+wasm_rt_memory_t create_wasm2c_memory(uint32_t initial_pages,
+                                      const w2c_mem_capacity* custom_capacity)
+{
 
   if (custom_capacity && !custom_capacity->is_valid) {
-    wasm_rt_memory_t ret = {0};
+    wasm_rt_memory_t ret = { 0 };
     return ret;
   }
 
   const uint32_t byte_length = initial_pages * WASM_PAGE_SIZE;
-  const uint64_t chosen_max_pages = custom_capacity? custom_capacity->max_pages : WASM_HEAP_DEFAULT_MAX_PAGES;
-  const uint64_t heap_reserve_size = compute_heap_reserve_space(chosen_max_pages);
+  const uint64_t chosen_max_pages =
+    custom_capacity ? custom_capacity->max_pages : WASM_HEAP_DEFAULT_MAX_PAGES;
+  const uint64_t heap_reserve_size =
+    compute_heap_reserve_space(chosen_max_pages);
 
   uint8_t* data = 0;
   const uint64_t retries = 10;
   for (uint64_t i = 0; i < retries; i++) {
-    data = (uint8_t*) os_mmap_aligned(0, heap_reserve_size, MMAP_PROT_NONE, MMAP_MAP_NONE,
-                            WASM_HEAP_ALIGNMENT, 0 /* alignment_offset */);
+    data = (uint8_t*)os_mmap_aligned(0,
+                                     heap_reserve_size,
+                                     MMAP_PROT_NONE,
+                                     MMAP_MAP_NONE,
+                                     WASM_HEAP_ALIGNMENT,
+                                     0 /* alignment_offset */);
     if (data) {
-      int ret = os_mmap_commit(data, byte_length, MMAP_PROT_READ | MMAP_PROT_WRITE);
+      int ret =
+        os_mmap_commit(data, byte_length, MMAP_PROT_READ | MMAP_PROT_WRITE);
       if (ret != 0) {
         // failed to set permissions
         os_munmap(data, heap_reserve_size);
@@ -141,9 +171,11 @@ wasm_rt_memory_t create_wasm2c_memory(uint32_t initial_pages, const w2c_mem_capa
   return ret;
 }
 
-void destroy_wasm2c_memory(wasm_rt_memory_t* memory) {
+void destroy_wasm2c_memory(wasm_rt_memory_t* memory)
+{
   if (memory->data != 0) {
-    const uint64_t heap_reserve_size = compute_heap_reserve_space(memory->max_pages);
+    const uint64_t heap_reserve_size =
+      compute_heap_reserve_space(memory->max_pages);
     os_munmap(memory->data, heap_reserve_size);
     memory->data = 0;
   }
@@ -160,9 +192,10 @@ void destroy_wasm2c_memory(wasm_rt_memory_t* memory) {
 // Check for windows (non cygwin) environment
 #if defined(_WIN32)
 
-#include <windows.h>
+#  include <windows.h>
 
-static size_t os_getpagesize() {
+static size_t os_getpagesize()
+{
   SYSTEM_INFO S;
   GetNativeSystemInfo(&S);
   return S.dwPageSize;
@@ -172,7 +205,8 @@ static void* win_mmap(void* hint,
                       size_t size,
                       int prot,
                       int flags,
-                      DWORD alloc_flag) {
+                      DWORD alloc_flag)
+{
   DWORD flProtect = PAGE_NOACCESS;
   size_t request_size, page_size;
   void* addr;
@@ -201,25 +235,30 @@ static void* win_mmap(void* hint,
   return addr;
 }
 
-static void* os_mmap(void* hint, size_t size, int prot, int flags) {
+static void* os_mmap(void* hint, size_t size, int prot, int flags)
+{
   DWORD alloc_flag = MEM_RESERVE | MEM_COMMIT;
   return win_mmap(hint, size, prot, flags, alloc_flag);
 }
 
-static void os_munmap(void* addr, size_t size) {
+static void os_munmap(void* addr, size_t size)
+{
   DWORD alloc_flag = MEM_RELEASE;
   if (addr) {
     if (VirtualFree(addr, 0, alloc_flag) == 0) {
       size_t page_size = os_getpagesize();
       size_t request_size = (size + page_size - 1) & ~(page_size - 1);
       int64_t curr_err = errno;
-      printf("os_munmap error addr:%p, size:0x%zx, errno:%" PRId64 "\n", addr,
-             request_size, curr_err);
+      printf("os_munmap error addr:%p, size:0x%zx, errno:%" PRId64 "\n",
+             addr,
+             request_size,
+             curr_err);
     }
   }
 }
 
-static int os_mprotect(void* addr, size_t size, int prot) {
+static int os_mprotect(void* addr, size_t size, int prot)
+{
   DWORD flProtect = PAGE_NOACCESS;
 
   if (!addr)
@@ -241,14 +280,15 @@ static int os_mprotect(void* addr, size_t size, int prot) {
 }
 
 static void* os_mmap_aligned(void* addr,
-                      size_t requested_length,
-                      int prot,
-                      int flags,
-                      size_t alignment,
-                      size_t alignment_offset) {
+                             size_t requested_length,
+                             int prot,
+                             int flags,
+                             size_t alignment,
+                             size_t alignment_offset)
+{
   size_t padded_length = requested_length + alignment + alignment_offset;
   uintptr_t unaligned =
-      (uintptr_t)win_mmap(addr, padded_length, prot, flags, MEM_RESERVE);
+    (uintptr_t)win_mmap(addr, padded_length, prot, flags, MEM_RESERVE);
 
   if (!unaligned) {
     return (void*)unaligned;
@@ -257,7 +297,7 @@ static void* os_mmap_aligned(void* addr,
   // Round up the next address that has addr % alignment = 0
   const size_t alignment_corrected = alignment == 0 ? 1 : alignment;
   uintptr_t aligned_nonoffset =
-      (unaligned + (alignment_corrected - 1)) & ~(alignment_corrected - 1);
+    (unaligned + (alignment_corrected - 1)) & ~(alignment_corrected - 1);
 
   // Currently offset 0 is aligned according to alignment
   // Alignment needs to be enforced at the given offset
@@ -274,8 +314,7 @@ static void* os_mmap_aligned(void* addr,
 
   // Sanity check
   if (aligned < unaligned ||
-      (aligned + (requested_length - 1)) >
-          (unaligned + (padded_length - 1)) ||
+      (aligned + (requested_length - 1)) > (unaligned + (padded_length - 1)) ||
       (aligned + alignment_offset) % alignment_corrected != 0) {
     os_munmap((void*)unaligned, padded_length);
     return NULL;
@@ -283,31 +322,34 @@ static void* os_mmap_aligned(void* addr,
 
   // windows does not support partial unmapping, so unmap and remap
   os_munmap((void*)unaligned, padded_length);
-  aligned = (uintptr_t)win_mmap((void*)aligned, requested_length, prot, flags,
-                                MEM_RESERVE);
+  aligned = (uintptr_t)win_mmap(
+    (void*)aligned, requested_length, prot, flags, MEM_RESERVE);
   return (void*)aligned;
 }
 
 static int os_mmap_commit(void* curr_heap_end_pointer,
-                   size_t expanded_size,
-                   int prot) {
-  uintptr_t addr = (uintptr_t)win_mmap(curr_heap_end_pointer, expanded_size,
-                                       prot, MMAP_MAP_NONE, MEM_COMMIT);
+                          size_t expanded_size,
+                          int prot)
+{
+  uintptr_t addr = (uintptr_t)win_mmap(
+    curr_heap_end_pointer, expanded_size, prot, MMAP_MAP_NONE, MEM_COMMIT);
   int ret = addr ? 0 : -1;
   return ret;
 }
 
-#elif !defined(_WIN32) && (defined(__unix__) || defined(__unix) || \
-                         (defined(__APPLE__) && defined(__MACH__)))
+#elif !defined(_WIN32) && (defined(__unix__) || defined(__unix) ||             \
+                           (defined(__APPLE__) && defined(__MACH__)))
 
-#include <sys/mman.h>
-#include <unistd.h>
+#  include <sys/mman.h>
+#  include <unistd.h>
 
-static size_t os_getpagesize() {
+static size_t os_getpagesize()
+{
   return getpagesize();
 }
 
-static void* os_mmap(void* hint, size_t size, int prot, int flags) {
+static void* os_mmap(void* hint, size_t size, int prot, int flags)
+{
   int map_prot = PROT_NONE;
   int map_flags = MAP_ANONYMOUS | MAP_PRIVATE;
   uint64_t request_size, page_size;
@@ -333,12 +375,12 @@ static void* os_mmap(void* hint, size_t size, int prot, int flags) {
   if (prot & MMAP_PROT_EXEC)
     map_prot |= PROT_EXEC;
 
-#if defined(BUILD_TARGET_X86_64) || defined(BUILD_TARGET_AMD_64)
-#ifndef __APPLE__
+#  if defined(BUILD_TARGET_X86_64) || defined(BUILD_TARGET_AMD_64)
+#    ifndef __APPLE__
   if (flags & MMAP_MAP_32BIT)
     map_flags |= MAP_32BIT;
-#endif
-#endif
+#    endif
+#  endif
 
   if (flags & MMAP_MAP_FIXED)
     map_flags |= MAP_FIXED;
@@ -351,19 +393,23 @@ static void* os_mmap(void* hint, size_t size, int prot, int flags) {
   return addr;
 }
 
-static void os_munmap(void* addr, size_t size) {
+static void os_munmap(void* addr, size_t size)
+{
   uint64_t page_size = (uint64_t)os_getpagesize();
   uint64_t request_size = (size + page_size - 1) & ~(page_size - 1);
 
   if (addr) {
     if (munmap(addr, request_size)) {
-      printf("os_munmap error addr:%p, size:0x%" PRIx64 ", errno:%d\n", addr,
-             request_size, errno);
+      printf("os_munmap error addr:%p, size:0x%" PRIx64 ", errno:%d\n",
+             addr,
+             request_size,
+             errno);
     }
   }
 }
 
-static int os_mprotect(void* addr, size_t size, int prot) {
+static int os_mprotect(void* addr, size_t size, int prot)
+{
   int map_prot = PROT_NONE;
   uint64_t page_size = (uint64_t)os_getpagesize();
   uint64_t request_size = (size + page_size - 1) & ~(page_size - 1);
@@ -384,11 +430,12 @@ static int os_mprotect(void* addr, size_t size, int prot) {
 }
 
 static void* os_mmap_aligned(void* addr,
-                      size_t requested_length,
-                      int prot,
-                      int flags,
-                      size_t alignment,
-                      size_t alignment_offset) {
+                             size_t requested_length,
+                             int prot,
+                             int flags,
+                             size_t alignment,
+                             size_t alignment_offset)
+{
   size_t padded_length = requested_length + alignment + alignment_offset;
   uintptr_t unaligned = (uintptr_t)os_mmap(addr, padded_length, prot, flags);
 
@@ -399,7 +446,7 @@ static void* os_mmap_aligned(void* addr,
   // Round up the next address that has addr % alignment = 0
   const size_t alignment_corrected = alignment == 0 ? 1 : alignment;
   uintptr_t aligned_nonoffset =
-      (unaligned + (alignment_corrected - 1)) & ~(alignment_corrected - 1);
+    (unaligned + (alignment_corrected - 1)) & ~(alignment_corrected - 1);
 
   // Currently offset 0 is aligned according to alignment
   // Alignment needs to be enforced at the given offset
@@ -427,7 +474,7 @@ static void* os_mmap_aligned(void* addr,
 
   {
     size_t unused_back =
-        (unaligned + (padded_length - 1)) - (aligned + (requested_length - 1));
+      (unaligned + (padded_length - 1)) - (aligned + (requested_length - 1));
     if (unused_back != 0) {
       os_munmap((void*)(aligned + requested_length), unused_back);
     }
@@ -437,11 +484,12 @@ static void* os_mmap_aligned(void* addr,
 }
 
 static int os_mmap_commit(void* curr_heap_end_pointer,
-                   size_t expanded_size,
-                   int prot) {
+                          size_t expanded_size,
+                          int prot)
+{
   return os_mprotect(curr_heap_end_pointer, expanded_size, prot);
 }
 
 #else
-#error "Unknown OS"
+#  error "Unknown OS"
 #endif

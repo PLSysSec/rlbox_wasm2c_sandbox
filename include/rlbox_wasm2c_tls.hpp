@@ -6,7 +6,6 @@ namespace rlbox {
 
 class rlbox_wasm2c_sandbox;
 
-
 struct rlbox_wasm2c_sandbox_thread_data
 {
   rlbox_wasm2c_sandbox* sandbox;
@@ -17,15 +16,17 @@ struct rlbox_wasm2c_sandbox_thread_data
 
 rlbox_wasm2c_sandbox_thread_data* get_rlbox_wasm2c_sandbox_thread_data();
 
-#define RLBOX_WASM2C_SANDBOX_STATIC_VARIABLES()                                                  \
-  thread_local rlbox::rlbox_wasm2c_sandbox_thread_data rlbox_wasm2c_sandbox_thread_info{ 0, 0 }; \
-                                                                                                 \
-  namespace rlbox {                                                                              \
-    rlbox_wasm2c_sandbox_thread_data* get_rlbox_wasm2c_sandbox_thread_data() {                   \
-      return &rlbox_wasm2c_sandbox_thread_info;                                                  \
-    }                                                                                            \
-  }                                                                                              \
-  static_assert(true, "Enforce semi-colon")
+#  define RLBOX_WASM2C_SANDBOX_STATIC_VARIABLES()                              \
+    thread_local rlbox::rlbox_wasm2c_sandbox_thread_data                       \
+      rlbox_wasm2c_sandbox_thread_info{ 0, 0 };                                \
+                                                                               \
+    namespace rlbox {                                                          \
+      rlbox_wasm2c_sandbox_thread_data* get_rlbox_wasm2c_sandbox_thread_data() \
+      {                                                                        \
+        return &rlbox_wasm2c_sandbox_thread_info;                              \
+      }                                                                        \
+    }                                                                          \
+    static_assert(true, "Enforce semi-colon")
 
 #endif
 
