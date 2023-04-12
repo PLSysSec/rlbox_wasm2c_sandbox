@@ -84,8 +84,6 @@ if(NOT rlbox_POPULATED)
   FetchContent_Populate(rlbox)
 endif()
 
-# set (rlbox_SOURCE_DIR "/home/shr/Code/LibrarySandboxing/rlbox_api_cpp17/")
-
 FetchContent_Declare(catch2
                      GIT_REPOSITORY https://github.com/catchorg/Catch2.git
                      GIT_TAG v2.13.9)
@@ -130,8 +128,7 @@ if(NOT mod_wasm2c_POPULATED)
   FetchContent_Populate(mod_wasm2c)
 endif()
 
-# set (mod_wasm2c_SOURCE_DIR "/home/shr/Code/LibrarySandboxing/wabt/")
-# set (mod_wasm2c_SOURCE_DIR "C:/Users/shr/Code/wasm2c_sandbox_compiler/")
+# set (mod_wasm2c_SOURCE_DIR "${CMAKE_SOURCE_DIR}/../wabt/")
 
 if(DEV)
   if(MSVC)
@@ -222,6 +219,10 @@ list(FILTER WASM2C_RUNTIME_CODE EXCLUDE REGEX "${WASM2C_RUNTIME_SOURCE_DIR}/exam
 add_library(glue_lib STATIC ${GLUE_LIB_C} ${WASM2C_RUNTIME_CODE})
 target_include_directories(glue_lib PRIVATE ${mod_wasm2c_SOURCE_DIR}/wasm2c
                                            PRIVATE ${CMAKE_SOURCE_DIR}/include)
+
+target_compile_definitions(glue_lib PUBLIC WASM_RT_USE_MMAP=1
+                                    PUBLIC WASM_RT_SKIP_SIGNAL_RECOVERY=1
+                                    PUBLIC WASM_RT_USE_STACK_DEPTH_COUNT=0)
 
 include(CTest)
 include(Catch)
