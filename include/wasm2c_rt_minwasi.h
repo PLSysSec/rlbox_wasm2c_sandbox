@@ -4,6 +4,7 @@
 /* A minimum wasi implementation supporting only stdin, stdout, stderr, argv
  * (upto 100 args) and clock functions. */
 
+#include <stdbool.h>
 #include <stdint.h>
 
 #include "wasm-rt.h"
@@ -26,8 +27,8 @@ extern "C"
     void* clock_data;
   } w2c_wasi__snapshot__preview1;
 
-  void minwasi_init();
-  void minwasi_init_instance(w2c_wasi__snapshot__preview1* wasi_data);
+  bool minwasi_init();
+  bool minwasi_init_instance(w2c_wasi__snapshot__preview1* wasi_data);
   void minwasi_cleanup_instance(w2c_wasi__snapshot__preview1* wasi_data);
 
 #ifdef __cplusplus

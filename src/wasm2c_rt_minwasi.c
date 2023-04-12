@@ -200,17 +200,18 @@ typedef struct
 static wasi_win_clock_info_t g_wasi_win_clock_info;
 static int g_os_data_initialized = 0;
 
-static void os_clock_init()
+static bool os_clock_init()
 {
   // From here:
   // https://stackoverflow.com/questions/5404277/porting-clock-gettime-to-windows/38212960#38212960
   if (QueryPerformanceFrequency(&g_wasi_win_clock_info.counts_per_sec) == 0) {
-    TRAP(WASI);
+    return false;
   }
   g_os_data_initialized = 1;
+  return true;
 }
 
-static void os_clock_init_instance(void** clock_data_pointer)
+static bool os_clock_init_instance(void** clock_data_pointer)
 {
   if (!g_os_data_initialized) {
     os_clock_init();
@@ -219,10 +220,11 @@ static void os_clock_init_instance(void** clock_data_pointer)
   wasi_win_clock_info_t* alloc =
     (wasi_win_clock_info_t*)malloc(sizeof(wasi_win_clock_info_t));
   if (!alloc) {
-    TRAP(WASI);
+    return false;
   }
   memcpy(alloc, &g_wasi_win_clock_info, sizeof(wasi_win_clock_info_t));
   *clock_data_pointer = alloc;
+  return true;
 }
 
 static void os_clock_cleanup_instance(void** clock_data_pointer)
@@ -279,18 +281,18 @@ typedef struct
 static wasi_mac_clock_info_t g_wasi_mac_clock_info;
 static int g_os_data_initialized = 0;
 
-static void os_clock_init()
+static bool os_clock_init()
 {
   // From here:
   // https://stackoverflow.com/questions/5167269/clock-gettime-alternative-in-mac-os-x/21352348#21352348
   if (mach_timebase_info(&g_wasi_mac_clock_info.timebase) != 0) {
-    TRAP(WASI);
+    return false;
   }
 
   // microseconds since 1 Jan 1970
   struct timeval micro;
   if (gettimeofday(&micro, NULL) != 0) {
-    TRAP(WASI);
+    return false;
   }
 
   g_wasi_mac_clock_info.initclock = mach_absolute_time();
@@ -299,9 +301,10 @@ static void os_clock_init()
   g_wasi_mac_clock_info.inittime.tv_nsec = micro.tv_usec * 1000;
 
   g_os_data_initialized = 1;
+  return true;
 }
 
-static void os_clock_init_instance(void** clock_data_pointer)
+static bool os_clock_init_instance(void** clock_data_pointer)
 {
   if (!g_os_data_initialized) {
     os_clock_init();
@@ -310,10 +313,11 @@ static void os_clock_init_instance(void** clock_data_pointer)
   wasi_mac_clock_info_t* alloc =
     (wasi_mac_clock_info_t*)malloc(sizeof(wasi_mac_clock_info_t));
   if (!alloc) {
-    TRAP(WASI);
+    return false;
   }
   memcpy(alloc, &g_wasi_mac_clock_info, sizeof(wasi_mac_clock_info_t));
   *clock_data_pointer = alloc;
+  return true;
 }
 
 static void os_clock_cleanup_instance(void** clock_data_pointer)
@@ -365,11 +369,15 @@ static int os_clock_getres(void* clock_data,
 
 #else
 
-static void os_clock_init() {}
+static bool os_clock_init()
+{
+  return true;
+}
 
-static void os_clock_init_instance(void** clock_data_pointer)
+static bool os_clock_init_instance(void** clock_data_pointer)
 {
   (void)clock_data_pointer;
+  return true;
 }
 
 static void os_clock_cleanup_instance(void** clock_data_pointer)
@@ -774,14 +782,15 @@ STUB_IMPORT_IMPL(u32, w2c_wasi__snapshot__preview1_sock_shutdown,
 /////////////////////////////////////////////////////////////
 ////////// Misc
 /////////////////////////////////////////////////////////////
-void minwasi_init()
+
+bool minwasi_init()
 {
-  os_clock_init();
+  return os_clock_init();
 }
 
-void minwasi_init_instance(w2c_wasi__snapshot__preview1* wasi_data)
+bool minwasi_init_instance(w2c_wasi__snapshot__preview1* wasi_data)
 {
-  os_clock_init_instance(&(wasi_data->clock_data));
+  return os_clock_init_instance(&(wasi_data->clock_data));
 }
 
 void minwasi_cleanup_instance(w2c_wasi__snapshot__preview1* wasi_data)

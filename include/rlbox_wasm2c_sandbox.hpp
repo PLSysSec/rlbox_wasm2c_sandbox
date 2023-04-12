@@ -495,10 +495,19 @@ public:
     FALLIBLE_DYNAMIC_CHECK(
       infallible, instance_initialized == false, "Sandbox already initialized");
 
+    bool minwasi_init_succeeded = true;
+
     std::call_once(rlbox_wasm2c_initialized, [&]() {
       wasm_rt_init();
-      minwasi_init();
+      minwasi_init_succeeded = minwasi_init();
     });
+
+    FALLIBLE_DYNAMIC_CHECK(
+      infallible, minwasi_init_succeeded, "Could not initialize min wasi");
+
+    const bool minwasi_init_inst_succeeded = minwasi_init_instance(&wasi_env);
+    FALLIBLE_DYNAMIC_CHECK(
+      infallible, minwasi_init_inst_succeeded, "Could not initialize min wasi instance");
 
     if (custom_capacity) {
       FALLIBLE_DYNAMIC_CHECK(
@@ -560,6 +569,7 @@ public:
 
     destroy_wasm2c_memory(&sandbox_memory_info);
     wasm_rt_free_funcref_table(&sandbox_callback_table);
+    minwasi_cleanup_instance(&wasi_env);
   }
 
   template<typename T>
