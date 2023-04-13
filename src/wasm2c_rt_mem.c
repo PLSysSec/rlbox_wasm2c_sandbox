@@ -26,23 +26,17 @@ enum
   MMAP_MAP_FIXED = 2
 };
 
-static size_t os_getpagesize();
-// Try allocating Memory space.
-// Returns pointer to allocated region on success, 0 on failure.
-static void* os_mmap(void* hint, size_t size, int prot, int flags);
-static void os_munmap(void* addr, size_t size);
-// Set the permissions of the memory region.
-// Returns 0 on success, non zero on failure.
-static int os_mprotect(void* addr, size_t size, int prot);
-// Like mmap but returns an aligned region
+// Try reserving an aligned memory space.
+// Returns pointer to allocated space on success, 0 on failure.
 static void* os_mmap_aligned(void* addr,
                              size_t requested_length,
                              int prot,
                              int flags,
                              size_t alignment,
                              size_t alignment_offset);
-
-// Commits and sets the permissions on an already allocated memory region
+// Unreserve the memory space
+static void os_munmap(void* addr, size_t size);
+// Allocates and sets the permissions on the previously reserved memory space
 // Returns 0 on success, non zero on failure.
 static int os_mmap_commit(void* curr_heap_end_pointer,
                           size_t expanded_size,
@@ -235,50 +229,6 @@ static void* win_mmap(void* hint,
   return addr;
 }
 
-static void* os_mmap(void* hint, size_t size, int prot, int flags)
-{
-  DWORD alloc_flag = MEM_RESERVE | MEM_COMMIT;
-  return win_mmap(hint, size, prot, flags, alloc_flag);
-}
-
-static void os_munmap(void* addr, size_t size)
-{
-  DWORD alloc_flag = MEM_RELEASE;
-  if (addr) {
-    if (VirtualFree(addr, 0, alloc_flag) == 0) {
-      size_t page_size = os_getpagesize();
-      size_t request_size = (size + page_size - 1) & ~(page_size - 1);
-      int64_t curr_err = errno;
-      printf("os_munmap error addr:%p, size:0x%zx, errno:%" PRId64 "\n",
-             addr,
-             request_size,
-             curr_err);
-    }
-  }
-}
-
-static int os_mprotect(void* addr, size_t size, int prot)
-{
-  DWORD flProtect = PAGE_NOACCESS;
-
-  if (!addr)
-    return 0;
-
-  if (prot & MMAP_PROT_EXEC) {
-    if (prot & MMAP_PROT_WRITE)
-      flProtect = PAGE_EXECUTE_READWRITE;
-    else
-      flProtect = PAGE_EXECUTE_READ;
-  } else if (prot & MMAP_PROT_WRITE)
-    flProtect = PAGE_READWRITE;
-  else if (prot & MMAP_PROT_READ)
-    flProtect = PAGE_READONLY;
-
-  DWORD old;
-  BOOL succeeded = VirtualProtect((LPVOID)addr, size, flProtect, &old);
-  return succeeded ? 0 : -1;
-}
-
 static void* os_mmap_aligned(void* addr,
                              size_t requested_length,
                              int prot,
@@ -325,6 +275,22 @@ static void* os_mmap_aligned(void* addr,
   aligned = (uintptr_t)win_mmap(
     (void*)aligned, requested_length, prot, flags, MEM_RESERVE);
   return (void*)aligned;
+}
+
+static void os_munmap(void* addr, size_t size)
+{
+  DWORD alloc_flag = MEM_RELEASE;
+  if (addr) {
+    if (VirtualFree(addr, 0, alloc_flag) == 0) {
+      size_t page_size = os_getpagesize();
+      size_t request_size = (size + page_size - 1) & ~(page_size - 1);
+      int64_t curr_err = errno;
+      printf("os_munmap error addr:%p, size:0x%zx, errno:%" PRId64 "\n",
+             addr,
+             request_size,
+             curr_err);
+    }
+  }
 }
 
 static int os_mmap_commit(void* curr_heap_end_pointer,
@@ -393,42 +359,6 @@ static void* os_mmap(void* hint, size_t size, int prot, int flags)
   return addr;
 }
 
-static void os_munmap(void* addr, size_t size)
-{
-  uint64_t page_size = (uint64_t)os_getpagesize();
-  uint64_t request_size = (size + page_size - 1) & ~(page_size - 1);
-
-  if (addr) {
-    if (munmap(addr, request_size)) {
-      printf("os_munmap error addr:%p, size:0x%" PRIx64 ", errno:%d\n",
-             addr,
-             request_size,
-             errno);
-    }
-  }
-}
-
-static int os_mprotect(void* addr, size_t size, int prot)
-{
-  int map_prot = PROT_NONE;
-  uint64_t page_size = (uint64_t)os_getpagesize();
-  uint64_t request_size = (size + page_size - 1) & ~(page_size - 1);
-
-  if (!addr)
-    return 0;
-
-  if (prot & MMAP_PROT_READ)
-    map_prot |= PROT_READ;
-
-  if (prot & MMAP_PROT_WRITE)
-    map_prot |= PROT_WRITE;
-
-  if (prot & MMAP_PROT_EXEC)
-    map_prot |= PROT_EXEC;
-
-  return mprotect(addr, request_size, map_prot);
-}
-
 static void* os_mmap_aligned(void* addr,
                              size_t requested_length,
                              int prot,
@@ -483,11 +413,40 @@ static void* os_mmap_aligned(void* addr,
   return (void*)aligned;
 }
 
-static int os_mmap_commit(void* curr_heap_end_pointer,
-                          size_t expanded_size,
-                          int prot)
+static void os_munmap(void* addr, size_t size)
 {
-  return os_mprotect(curr_heap_end_pointer, expanded_size, prot);
+  uint64_t page_size = (uint64_t)os_getpagesize();
+  uint64_t request_size = (size + page_size - 1) & ~(page_size - 1);
+
+  if (addr) {
+    if (munmap(addr, request_size)) {
+      printf("os_munmap error addr:%p, size:0x%" PRIx64 ", errno:%d\n",
+             addr,
+             request_size,
+             errno);
+    }
+  }
+}
+
+static int os_mmap_commit(void* addr, size_t size, int prot)
+{
+  int map_prot = PROT_NONE;
+  uint64_t page_size = (uint64_t)os_getpagesize();
+  uint64_t request_size = (size + page_size - 1) & ~(page_size - 1);
+
+  if (!addr)
+    return 0;
+
+  if (prot & MMAP_PROT_READ)
+    map_prot |= PROT_READ;
+
+  if (prot & MMAP_PROT_WRITE)
+    map_prot |= PROT_WRITE;
+
+  if (prot & MMAP_PROT_EXEC)
+    map_prot |= PROT_EXEC;
+
+  return mprotect(addr, request_size, map_prot);
 }
 
 #else
