@@ -119,16 +119,16 @@ if(NOT wasiclang_POPULATED)
   FetchContent_Populate(wasiclang)
 endif()
 
-FetchContent_Declare(
-  mod_wasm2c
-  GIT_REPOSITORY https://github.com/WebAssembly/wabt/
-  GIT_TAG main)
-FetchContent_GetProperties(mod_wasm2c)
-if(NOT mod_wasm2c_POPULATED)
-  FetchContent_Populate(mod_wasm2c)
-endif()
+# FetchContent_Declare(
+#   mod_wasm2c
+#   GIT_REPOSITORY https://github.com/WebAssembly/wabt/
+#   GIT_TAG main)
+# FetchContent_GetProperties(mod_wasm2c)
+# if(NOT mod_wasm2c_POPULATED)
+#   FetchContent_Populate(mod_wasm2c)
+# endif()
 
-# set (mod_wasm2c_SOURCE_DIR "${CMAKE_SOURCE_DIR}/../wabt/")
+set (mod_wasm2c_SOURCE_DIR "${CMAKE_SOURCE_DIR}/../wabt/")
 
 if(DEV)
   if(MSVC)
@@ -218,11 +218,13 @@ list(FILTER WASM2C_RUNTIME_CODE EXCLUDE REGEX "${WASM2C_RUNTIME_SOURCE_DIR}/exam
 
 add_library(glue_lib STATIC ${GLUE_LIB_C} ${WASM2C_RUNTIME_CODE})
 target_include_directories(glue_lib PRIVATE ${mod_wasm2c_SOURCE_DIR}/wasm2c
-                                           PRIVATE ${CMAKE_SOURCE_DIR}/include)
+                                    PUBLIC ${mod_wasm2c_SOURCE_DIR}/third_party/simde
+                                    PRIVATE ${CMAKE_SOURCE_DIR}/include)
 
 target_compile_definitions(glue_lib PUBLIC WASM_RT_USE_MMAP=1
                                     PUBLIC WASM_RT_SKIP_SIGNAL_RECOVERY=1
-                                    PUBLIC WASM_RT_USE_STACK_DEPTH_COUNT=0)
+                                    PUBLIC WASM_RT_USE_STACK_DEPTH_COUNT=0
+                                    PUBLIC WASM_RT_SKIP_EXCEPTION_HANDLING=1)
 
 include(CTest)
 include(Catch)
