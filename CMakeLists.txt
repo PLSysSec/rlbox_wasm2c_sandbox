@@ -119,16 +119,16 @@ if(NOT wasiclang_POPULATED)
   FetchContent_Populate(wasiclang)
 endif()
 
-# FetchContent_Declare(
-#   mod_wasm2c
-#   GIT_REPOSITORY https://github.com/WebAssembly/wabt/
-#   GIT_TAG main)
-# FetchContent_GetProperties(mod_wasm2c)
-# if(NOT mod_wasm2c_POPULATED)
-#   FetchContent_Populate(mod_wasm2c)
-# endif()
+FetchContent_Declare(
+  mod_wasm2c
+  GIT_REPOSITORY https://github.com/WebAssembly/wabt/
+  GIT_TAG main)
+FetchContent_GetProperties(mod_wasm2c)
+if(NOT mod_wasm2c_POPULATED)
+  FetchContent_Populate(mod_wasm2c)
+endif()
 
-set (mod_wasm2c_SOURCE_DIR "${CMAKE_SOURCE_DIR}/../wabt/")
+# set (mod_wasm2c_SOURCE_DIR "${CMAKE_SOURCE_DIR}/../wabt/")
 
 if(DEV)
   if(MSVC)
