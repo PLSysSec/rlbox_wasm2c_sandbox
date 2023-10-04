@@ -304,12 +304,12 @@ public:
 
 private:
   mutable typename RLBOX_WASM_MODULE_TYPE_CURR::instance_t wasm2c_instance{ 0 };
-  struct w2c_env sandbox_memory_env;
-  struct w2c_wasi__snapshot__preview1 wasi_env;
+  struct w2c_env sandbox_memory_env{ 0 };
+  struct w2c_wasi__snapshot__preview1 wasi_env{ 0 };
   bool instance_initialized = false;
-  wasm_rt_memory_t sandbox_memory_info;
-  mutable wasm_rt_funcref_table_t sandbox_callback_table;
-  uintptr_t heap_base;
+  wasm_rt_memory_t sandbox_memory_info{ 0 };
+  mutable wasm_rt_funcref_table_t sandbox_callback_table{ 0 };
+  uintptr_t heap_base = 0;
   size_t return_slot_size = 0;
   T_PointerType return_slot = 0;
   mutable std::vector<T_PointerType> callback_free_list;
