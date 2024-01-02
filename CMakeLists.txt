@@ -223,8 +223,7 @@ target_include_directories(glue_lib PRIVATE ${mod_wasm2c_SOURCE_DIR}/wasm2c
 
 target_compile_definitions(glue_lib PUBLIC WASM_RT_USE_MMAP=1
                                     PUBLIC WASM_RT_SKIP_SIGNAL_RECOVERY=1
-                                    PUBLIC WASM_RT_USE_STACK_DEPTH_COUNT=0
-                                    PUBLIC WASM_RT_SKIP_EXCEPTION_HANDLING=1)
+                                    PUBLIC WASM_RT_NONCONFORMING_UNCHECKED_STACK_EXHAUSTION=1)
 
 include(CTest)
 include(Catch)
