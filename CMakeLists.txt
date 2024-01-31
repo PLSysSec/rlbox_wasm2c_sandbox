@@ -213,8 +213,10 @@ if(DEV)
   add_link_options(${RLBOX_SANITIZER_LINK_FLAGS})
 endif()
 
-set(WASM2C_RUNTIME_CODE ${WASM2C_RUNTIME_SOURCE_DIR}/wasm-rt-impl.c ${CMAKE_SOURCE_DIR}/src/wasm2c_rt_minwasi.c ${CMAKE_SOURCE_DIR}/src/wasm2c_rt_mem.c)
-list(FILTER WASM2C_RUNTIME_CODE EXCLUDE REGEX "${WASM2C_RUNTIME_SOURCE_DIR}/examples/.*" )
+set(WASM2C_RUNTIME_CODE ${WASM2C_RUNTIME_SOURCE_DIR}/wasm-rt-impl.c
+                        ${WASM2C_RUNTIME_SOURCE_DIR}/wasm-rt-mem-impl.c
+                        ${CMAKE_SOURCE_DIR}/src/wasm2c_rt_minwasi.c
+                        ${CMAKE_SOURCE_DIR}/src/wasm2c_rt_mem.c)
 
 add_library(glue_lib STATIC ${GLUE_LIB_C} ${WASM2C_RUNTIME_CODE})
 target_include_directories(glue_lib PRIVATE ${mod_wasm2c_SOURCE_DIR}/wasm2c
