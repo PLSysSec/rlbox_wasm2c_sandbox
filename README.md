@@ -34,7 +34,7 @@ cmake --build ./build --target all
 This wasm2c/wasm integration with RLBox depends on 3 external tools/libraries that are pulled in **automatically** to run the tests included in this repo.
 
 1. [A clang compiler with support for WASM/WASI backend, and the WASI sysroot](https://github.com/CraneStation/wasi-sdk). This allows you to compile C/C++ code to WASM modules usable outside of web browsers (in desktop applications).
-2. [The wasm2c compiler](https://github.com/WebAssembly/wabt/) that compiles the produced WASM/WASI module to C code that you can compile into a shared library with a c compiler.
+2. [The wasm2c compiler](https://github.com/WebAssembly/wabt/) that compiles the produced WASM/WASI module to C code that you can compile with a standard C compiler.
 3. [The RLBox APIs]((https://github.com/PLSysSec/rlbox_api_cpp17)) - A set of APIs that allow easy use of sandboxed libraries.
 
 In the below steps, you can either use the automatically pulled in versions as described below, or download the tools yourself.
