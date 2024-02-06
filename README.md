@@ -2,7 +2,7 @@
 
 # RLBox Wasm2c Sandbox Integration
 
-Integration with RLBox sandboxing API to leverage the sandboxing in WASM modules compiled with a modified wasm2c compiler.
+Integration with RLBox sandboxing API to leverage the sandboxing in WASM modules compiled with the wasm2c compiler (from the [wabt](https://github.com/WebAssembly/wabt/) toolsuite).
 
 For details about the RLBox sandboxing APIs, see [here](https://github.com/PLSysSec/rlbox_api_cpp17).
 
