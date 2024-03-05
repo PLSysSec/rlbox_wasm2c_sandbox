@@ -168,10 +168,14 @@ set(WASM2C_RUNTIME_SOURCE_DIR "${mod_wasm2c_SOURCE_DIR}/wasm2c/")
 set(WASM2C_RUNTIME_DIR "${mod_wasm2c_SOURCE_DIR}/build_${WASM2C_BUILD_DIR_SUFFIX}/")
 
 set(C_SOURCE_FILES "${CMAKE_SOURCE_DIR}/c_src/wasm2c_sandbox_wrapper.c")
-set(GLUE_LIB_WASM_DIR "${CMAKE_BINARY_DIR}/wasm/")
-set(GLUE_LIB_WASM "${GLUE_LIB_WASM_DIR}/glue_lib_wasm2c.wasm")
-set(GLUE_LIB_H "${GLUE_LIB_WASM_DIR}/glue_lib_wasm2c.h")
-set(GLUE_LIB_C "${GLUE_LIB_WASM_DIR}/glue_lib_wasm2c.c")
+set(GLUE_LIB_WASM_IMPORTED_DIR "${CMAKE_BINARY_DIR}/wasm_imported/")
+set(GLUE_LIB_IMPORTED_WASM "${GLUE_LIB_WASM_IMPORTED_DIR}/glue_lib_wasm2c.wasm")
+set(GLUE_LIB_IMPORTED_H "${GLUE_LIB_WASM_IMPORTED_DIR}/glue_lib_wasm2c.h")
+set(GLUE_LIB_IMPORTED_C "${GLUE_LIB_WASM_IMPORTED_DIR}/glue_lib_wasm2c.c")
+set(GLUE_LIB_WASM_EXPORTED_DIR "${CMAKE_BINARY_DIR}/wasm_exported/")
+set(GLUE_LIB_EXPORTED_WASM "${GLUE_LIB_WASM_EXPORTED_DIR}/glue_lib_wasm2c.wasm")
+set(GLUE_LIB_EXPORTED_H "${GLUE_LIB_WASM_EXPORTED_DIR}/glue_lib_wasm2c.h")
+set(GLUE_LIB_EXPORTED_C "${GLUE_LIB_WASM_EXPORTED_DIR}/glue_lib_wasm2c.c")
 
 if(MSVC)
   set(WASM2C_PATH ${WASM2C_RUNTIME_DIR}/${WASM2C_BUILD_TYPE}/wasm2c.exe)
@@ -179,8 +183,7 @@ else()
   set(WASM2C_PATH ${WASM2C_RUNTIME_DIR}/wasm2c)
 endif()
 
-add_custom_command(OUTPUT "${GLUE_LIB_H}" "${GLUE_LIB_C}" "${GLUE_LIB_WASM}"
-                   DEPENDS ${C_SOURCE_FILES}
+add_custom_command(OUTPUT "${WASM2C_PATH}"
                    WORKING_DIRECTORY "${mod_wasm2c_SOURCE_DIR}"
                    COMMAND ${CMAKE_COMMAND}
                            -DCMAKE_BUILD_TYPE=${WASM2C_BUILD_TYPE}
@@ -193,18 +196,37 @@ add_custom_command(OUTPUT "${GLUE_LIB_H}" "${GLUE_LIB_C}" "${GLUE_LIB_WASM}"
                            --build ${WASM2C_RUNTIME_DIR}
                            --config ${WASM2C_BUILD_TYPE}
                            --parallel
-                    COMMAND ${CMAKE_COMMAND} -E make_directory ${GLUE_LIB_WASM_DIR}
+                   COMMENT "Building wasm2c compiler and runtime")
+
+add_custom_command(OUTPUT "${GLUE_LIB_IMPORTED_H}" "${GLUE_LIB_IMPORTED_C}" "${GLUE_LIB_IMPORTED_WASM}"
+                   DEPENDS ${C_SOURCE_FILES} ${WASM2C_PATH}
+                    COMMAND ${CMAKE_COMMAND} -E make_directory ${GLUE_LIB_WASM_IMPORTED_DIR}
                     COMMAND ${wasiclang_SOURCE_DIR}/bin/clang
                             --sysroot ${wasiclang_SOURCE_DIR}/share/wasi-sysroot/
                             -O3
                             -Wl,--export-all -Wl,--no-entry -Wl,--growable-table -Wl,--stack-first -Wl,-z,stack-size=1048576 -Wl,--import-memory -Wl,--import-table
-                            -o ${GLUE_LIB_WASM}
+                            -o ${GLUE_LIB_IMPORTED_WASM}
                             ${CMAKE_SOURCE_DIR}/c_src/wasm2c_sandbox_wrapper.c
                             ${rlbox_SOURCE_DIR}/code/tests/rlbox_glue/lib/libtest.c
                     COMMAND ${WASM2C_PATH}
-                            -o ${GLUE_LIB_C}
-                            ${GLUE_LIB_WASM}
-                   COMMENT "Building wasm2c compiler, runtime and wasm sandboxed library")
+                            -o ${GLUE_LIB_IMPORTED_C}
+                            ${GLUE_LIB_IMPORTED_WASM}
+                   COMMENT "Building wasm sandboxed library with imported memory and imported table")
+
+add_custom_command(OUTPUT "${GLUE_LIB_EXPORTED_H}" "${GLUE_LIB_EXPORTED_C}" "${GLUE_LIB_EXPORTED_WASM}"
+                   DEPENDS ${C_SOURCE_FILES} ${WASM2C_PATH}
+                    COMMAND ${CMAKE_COMMAND} -E make_directory ${GLUE_LIB_WASM_EXPORTED_DIR}
+                    COMMAND ${wasiclang_SOURCE_DIR}/bin/clang
+                            --sysroot ${wasiclang_SOURCE_DIR}/share/wasi-sysroot/
+                            -O3
+                            -Wl,--export-all -Wl,--no-entry -Wl,--growable-table -Wl,--stack-first -Wl,-z,stack-size=1048576 -Wl,--export-table
+                            -o ${GLUE_LIB_EXPORTED_WASM}
+                            ${CMAKE_SOURCE_DIR}/c_src/wasm2c_sandbox_wrapper.c
+                            ${rlbox_SOURCE_DIR}/code/tests/rlbox_glue/lib/libtest.c
+                    COMMAND ${WASM2C_PATH}
+                            -o ${GLUE_LIB_EXPORTED_C}
+                            ${GLUE_LIB_EXPORTED_WASM}
+                   COMMENT "Building wasm sandboxed library with exported memory and exported table")
 
 # Tests ###################
 
@@ -218,14 +240,26 @@ set(WASM2C_RUNTIME_CODE ${WASM2C_RUNTIME_SOURCE_DIR}/wasm-rt-impl.c
                         ${CMAKE_SOURCE_DIR}/src/wasm2c_rt_minwasi.c
                         ${CMAKE_SOURCE_DIR}/src/wasm2c_rt_mem.c)
 
-add_library(glue_lib STATIC ${GLUE_LIB_C} ${WASM2C_RUNTIME_CODE})
-target_include_directories(glue_lib PRIVATE ${mod_wasm2c_SOURCE_DIR}/wasm2c
-                                    PUBLIC ${mod_wasm2c_SOURCE_DIR}/third_party/simde
-                                    PRIVATE ${CMAKE_SOURCE_DIR}/include)
+add_library(glue_lib_imported STATIC ${GLUE_LIB_IMPORTED_C} ${WASM2C_RUNTIME_CODE})
+target_include_directories(glue_lib_imported PRIVATE ${mod_wasm2c_SOURCE_DIR}/wasm2c
+                                             PUBLIC ${mod_wasm2c_SOURCE_DIR}/third_party/simde
+                                             PRIVATE ${CMAKE_SOURCE_DIR}/include)
 
-target_compile_definitions(glue_lib PUBLIC WASM_RT_USE_MMAP=1
-                                    PUBLIC WASM_RT_SKIP_SIGNAL_RECOVERY=1
-                                    PUBLIC WASM_RT_NONCONFORMING_UNCHECKED_STACK_EXHAUSTION=1)
+target_compile_definitions(glue_lib_imported PUBLIC WASM_RT_USE_MMAP=1
+                                             PUBLIC WASM_RT_SKIP_SIGNAL_RECOVERY=1
+                                             PUBLIC WASM_RT_NONCONFORMING_UNCHECKED_STACK_EXHAUSTION=1)
+
+add_library(glue_lib_exported STATIC ${GLUE_LIB_EXPORTED_C} ${WASM2C_RUNTIME_CODE})
+target_include_directories(glue_lib_exported PRIVATE ${mod_wasm2c_SOURCE_DIR}/wasm2c
+                                             PUBLIC ${mod_wasm2c_SOURCE_DIR}/third_party/simde
+                                             PRIVATE ${CMAKE_SOURCE_DIR}/include)
+
+target_compile_definitions(glue_lib_exported PUBLIC WASM_RT_USE_MMAP=1
+                                             PUBLIC WASM_RT_SKIP_SIGNAL_RECOVERY=1
+                                             PUBLIC WASM_RT_NONCONFORMING_UNCHECKED_STACK_EXHAUSTION=1)
+
+# Hack to avoid multiple concurrent calls to the custom command that builds wasm2c
+add_dependencies(glue_lib_imported glue_lib_exported)
 
 include(CTest)
 include(Catch)
@@ -241,18 +275,40 @@ target_include_directories(test_rlbox_glue PUBLIC ${CMAKE_SOURCE_DIR}/include
                                            PUBLIC ${rlbox_SOURCE_DIR}/code/tests/rlbox_glue
                                            PUBLIC ${rlbox_SOURCE_DIR}/code/tests/rlbox_glue/lib
                                            PUBLIC ${mod_wasm2c_SOURCE_DIR}/wasm2c
-                                           PUBLIC ${GLUE_LIB_WASM_DIR}
+                                           PUBLIC ${GLUE_LIB_WASM_IMPORTED_DIR}
                                            )
 target_link_libraries(test_rlbox_glue Catch2::Catch2
                                       ${CMAKE_THREAD_LIBS_INIT}
                                       ${CMAKE_DL_LIBS}
-                                      glue_lib
+                                      glue_lib_imported
 )
 
 if(UNIX AND NOT (${CMAKE_SYSTEM_NAME} MATCHES "Darwin"))
   target_link_libraries(test_rlbox_glue rt)
 endif()
 catch_discover_tests(test_rlbox_glue)
+
+####
+
+add_executable(test_rlbox_glue_exported test/test_wasm2c_sandbox_glue_main.cpp
+                                        test/test_wasm2c_sandbox_glue.cpp)
+target_include_directories(test_rlbox_glue_exported PUBLIC ${CMAKE_SOURCE_DIR}/include
+                                                    PUBLIC ${rlbox_SOURCE_DIR}/code/include
+                                                    PUBLIC ${rlbox_SOURCE_DIR}/code/tests/rlbox_glue
+                                                    PUBLIC ${rlbox_SOURCE_DIR}/code/tests/rlbox_glue/lib
+                                                    PUBLIC ${mod_wasm2c_SOURCE_DIR}/wasm2c
+                                                    PUBLIC ${GLUE_LIB_WASM_EXPORTED_DIR}
+                                                    )
+target_link_libraries(test_rlbox_glue_exported Catch2::Catch2
+                                      ${CMAKE_THREAD_LIBS_INIT}
+                                      ${CMAKE_DL_LIBS}
+                                      glue_lib_exported
+)
+
+if(UNIX AND NOT (${CMAKE_SYSTEM_NAME} MATCHES "Darwin"))
+  target_link_libraries(test_rlbox_glue_exported rt)
+endif()
+catch_discover_tests(test_rlbox_glue_exported)
 
 ####
 
@@ -263,12 +319,12 @@ target_include_directories(test_rlbox_glue_smallheap PUBLIC ${CMAKE_SOURCE_DIR}/
                                            PUBLIC ${rlbox_SOURCE_DIR}/code/tests/rlbox_glue
                                            PUBLIC ${rlbox_SOURCE_DIR}/code/tests/rlbox_glue/lib
                                            PUBLIC ${mod_wasm2c_SOURCE_DIR}/wasm2c
-                                           PUBLIC ${GLUE_LIB_WASM_DIR}
+                                           PUBLIC ${GLUE_LIB_WASM_IMPORTED_DIR}
                                            )
 target_link_libraries(test_rlbox_glue_smallheap Catch2::Catch2
                                       ${CMAKE_THREAD_LIBS_INIT}
                                       ${CMAKE_DL_LIBS}
-                                      glue_lib
+                                      glue_lib_imported
 )
 
 if(UNIX AND NOT (${CMAKE_SYSTEM_NAME} MATCHES "Darwin"))
@@ -285,12 +341,12 @@ target_include_directories(test_rlbox_glue_embed PUBLIC ${CMAKE_SOURCE_DIR}/incl
                                            PUBLIC ${rlbox_SOURCE_DIR}/code/tests/rlbox_glue
                                            PUBLIC ${rlbox_SOURCE_DIR}/code/tests/rlbox_glue/lib
                                            PUBLIC ${mod_wasm2c_SOURCE_DIR}/wasm2c
-                                           PUBLIC ${GLUE_LIB_WASM_DIR}
+                                           PUBLIC ${GLUE_LIB_WASM_IMPORTED_DIR}
                                            )
 target_link_libraries(test_rlbox_glue_embed Catch2::Catch2
                                       ${CMAKE_THREAD_LIBS_INIT}
                                       ${CMAKE_DL_LIBS}
-                                      glue_lib
+                                      glue_lib_imported
 )
 
 if(UNIX AND NOT (${CMAKE_SYSTEM_NAME} MATCHES "Darwin"))
@@ -302,6 +358,7 @@ catch_discover_tests(test_rlbox_glue_embed)
 
 add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} -V)
 add_dependencies(check test_rlbox_glue)
+add_dependencies(check test_rlbox_glue_exported)
 add_dependencies(check test_rlbox_glue_smallheap)
 add_dependencies(check test_rlbox_glue_embed)
 
