@@ -329,6 +329,7 @@ private:
   struct w2c_env sandbox_memory_env{ 0 };
   struct w2c_wasi__snapshot__preview1 wasi_env{ 0 };
   bool instance_initialized = false;
+  bool minwasi_init_inst_succeeded = false;
   // Only used if memory and tables are imported
   wasm_rt_memory_t local_sandbox_memory_info{ 0 };
   mutable wasm_rt_funcref_table_t local_sandbox_callback_table{ 0 };
@@ -537,7 +538,7 @@ public:
     FALLIBLE_DYNAMIC_CHECK(
       infallible, minwasi_init_succeeded, "Could not initialize min wasi");
 
-    const bool minwasi_init_inst_succeeded = minwasi_init_instance(&wasi_env);
+    minwasi_init_inst_succeeded = minwasi_init_instance(&wasi_env);
     FALLIBLE_DYNAMIC_CHECK(
       infallible, minwasi_init_inst_succeeded, "Could not initialize min wasi instance");
 
@@ -620,10 +621,20 @@ public:
     }
 
     if constexpr (is_imported_memory_and_table) {
-      destroy_wasm2c_memory(sandbox_memory_info);
-      wasm_rt_free_funcref_table(sandbox_callback_table);
+      if (sandbox_memory_info && sandbox_memory_info->data) {
+        destroy_wasm2c_memory(sandbox_memory_info);
+        sandbox_memory_info = nullptr;
+      }
+      if (sandbox_callback_table && sandbox_callback_table->data) {
+        wasm_rt_free_funcref_table(sandbox_callback_table);
+        sandbox_callback_table = nullptr;
+      }
     }
-    minwasi_cleanup_instance(&wasi_env);
+
+    if (minwasi_init_inst_succeeded) {
+      minwasi_init_inst_succeeded = false;
+      minwasi_cleanup_instance(&wasi_env);
+    }
   }
 
   template<typename T>
