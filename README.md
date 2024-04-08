@@ -4,7 +4,7 @@
 
 Integration with RLBox sandboxing API to leverage the sandboxing in WASM modules compiled with the wasm2c compiler (from the [wabt](https://github.com/WebAssembly/wabt/) toolsuite).
 
-For details about the RLBox sandboxing APIs, see [here](https://github.com/PLSysSec/rlbox_api_cpp17).
+For details about the RLBox sandboxing APIs, see [here](https://github.com/PLSysSec/rlbox).
 
 ## Reporting security bugs
 
@@ -35,7 +35,7 @@ This wasm2c/wasm integration with RLBox depends on 3 external tools/libraries th
 
 1. [A clang compiler with support for WASM/WASI backend, and the WASI sysroot](https://github.com/CraneStation/wasi-sdk). This allows you to compile C/C++ code to WASM modules usable outside of web browsers (in desktop applications).
 2. [The wasm2c compiler](https://github.com/WebAssembly/wabt/) that compiles the produced WASM/WASI module to C code that you can compile with a standard C compiler.
-3. [The RLBox APIs]((https://github.com/PLSysSec/rlbox_api_cpp17)) - A set of APIs that allow easy use of sandboxed code. It handles ABI differences between sandboxed (Wasm) code and native code, and ensures that you include data sanitization checks on untrusted data returned by the sandboxed C code.
+3. [The RLBox APIs]((https://github.com/PLSysSec/rlbox)) - A set of APIs that allow easy use of sandboxed code. It handles ABI differences between sandboxed (Wasm) code and native code, and ensures that you include data sanitization checks on untrusted data returned by the sandboxed C code.
 
 In the below steps, you can either use the automatically pulled in versions as described below, or download the tools yourself.
 
