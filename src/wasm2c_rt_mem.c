@@ -328,8 +328,8 @@ static void* os_mmap(void* hint, size_t size, int prot, int flags)
     /* integer overflow */
     return NULL;
 
-  if (request_size > 16 * (uint64_t)UINT32_MAX)
-    /* At most 16 G is allowed */
+  if (request_size > 4 * (uint64_t)UINT32_MAX)
+    /* Sanity check: At most 16 G is allowed */
     return NULL;
 
   if (prot & MMAP_PROT_READ)
