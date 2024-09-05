@@ -4,8 +4,8 @@
 #define RLBOX_USE_STATIC_CALLS() rlbox_wasm2c_sandbox_lookup_symbol
 #define RLBOX_WASM2C_MODULE_NAME glue__lib__wasm2c
 #define RLBOX_EMBEDDER_PROVIDES_TLS_STATIC_VARIABLES
-#include "glue_lib_wasm2c.h"
-#include "rlbox_wasm2c_sandbox.hpp"
+#include "glue_lib_wasm2c.h" // IWYU pragma: keep
+#include "rlbox_wasm2c_sandbox.hpp" // IWYU pragma: keep
 RLBOX_WASM2C_SANDBOX_STATIC_VARIABLES();
 
 // NOLINTNEXTLINE

@@ -231,8 +231,12 @@ add_custom_command(OUTPUT "${GLUE_LIB_EXPORTED_H}" "${GLUE_LIB_EXPORTED_C}" "${G
 # Tests ###################
 
 if(DEV)
-  add_compile_options(-Wall -Wextra -pedantic ${RLBOX_SANITIZER_COMPILE_FLAGS})
-  add_link_options(${RLBOX_SANITIZER_LINK_FLAGS})
+  if(NOT MSVC)
+    add_compile_options(-Wall -Wextra -Wno-unused-parameter -Wno-missing-field-initializers ${RLBOX_SANITIZER_COMPILE_FLAGS})
+    set_source_files_properties(${GLUE_LIB_IMPORTED_C} PROPERTIES COMPILE_OPTIONS "-Wno-cast-function-type;-Wno-unused-function;-Wno-unused-value;-Wno-unused-but-set-variable")
+    set_source_files_properties(${GLUE_LIB_EXPORTED_C} PROPERTIES COMPILE_OPTIONS "-Wno-cast-function-type;-Wno-unused-function;-Wno-unused-value;-Wno-unused-but-set-variable")
+    add_link_options(${RLBOX_SANITIZER_LINK_FLAGS})
+  endif()
 endif()
 
 set(WASM2C_RUNTIME_CODE ${WASM2C_RUNTIME_SOURCE_DIR}/wasm-rt-impl.c
