@@ -9,7 +9,6 @@
 #include "rlbox_helpers.hpp"
 
 #include <cstdint>
-#include <iostream>
 #include <limits>
 #include <map>
 #include <memory>
