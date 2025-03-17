@@ -556,7 +556,7 @@ public:
       INVOKE_DEFINE_RLBOX_WASM2C_IMPORTED_MODULE_ATTRIBS(RLBOX_WASM2C_MODULE_NAME);
 
       *sandbox_memory_info = create_wasm2c_memory(
-        *initial_memory_pages, custom_capacity);
+        *initial_memory_pages, custom_capacity, "RLBox_wasm2c" /* name */);
       FALLIBLE_DYNAMIC_CHECK(infallible,
                             sandbox_memory_info->data != nullptr,
                             "Could not allocate a heap for the wasm2c sandbox");
