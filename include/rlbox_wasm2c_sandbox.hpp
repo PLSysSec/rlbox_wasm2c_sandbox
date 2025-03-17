@@ -522,7 +522,8 @@ public:
    */
   inline bool impl_create_sandbox(
     bool infallible = true,
-    const w2c_mem_capacity* custom_capacity = nullptr)
+    const w2c_mem_capacity* custom_capacity = nullptr,
+    const char* instance_name = nullptr)
   {
     FALLIBLE_DYNAMIC_CHECK(
       infallible, instance_initialized == false, "Sandbox already initialized");
@@ -556,7 +557,7 @@ public:
       INVOKE_DEFINE_RLBOX_WASM2C_IMPORTED_MODULE_ATTRIBS(RLBOX_WASM2C_MODULE_NAME);
 
       *sandbox_memory_info = create_wasm2c_memory(
-        *initial_memory_pages, custom_capacity, "RLBox_wasm2c" /* name */);
+        *initial_memory_pages, custom_capacity, instance_name? instance_name : "RLBox_wasm2c");
       FALLIBLE_DYNAMIC_CHECK(infallible,
                             sandbox_memory_info->data != nullptr,
                             "Could not allocate a heap for the wasm2c sandbox");
