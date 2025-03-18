@@ -96,27 +96,31 @@ add_subdirectory("${catch2_SOURCE_DIR}")
 list(APPEND CMAKE_MODULE_PATH "${catch2_SOURCE_DIR}/contrib")
 
 if (WIN32)
-  FetchContent_Declare(
-    wasiclang
-    URL https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-12/wasi-sdk-12.0-mingw.tar.gz
-    DOWNLOAD_EXTRACT_TIMESTAMP false
-    )
+  set (wasi-clang-url "https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-21/wasi-sdk-21.0-mingw.tar.gz")
 elseif (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
-  FetchContent_Declare(
-    wasiclang
-    URL https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-12/wasi-sdk-12.0-macos.tar.gz
-    DOWNLOAD_EXTRACT_TIMESTAMP false
-    )
+  set (wasi-clang-url "https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-21/wasi-sdk-21.0-macos.tar.gz")
+elseif (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+  set (wasi-clang-url "https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-21/wasi-sdk-21.0-linux.tar.gz")
 else()
+  set (wasi-clang-url "")
+endif()
+
+if (WIN32 OR ${CMAKE_SYSTEM_NAME} MATCHES "Darwin" OR ${CMAKE_SYSTEM_NAME} MATCHES "Linux")
   FetchContent_Declare(
     wasiclang
-    URL https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-12/wasi-sdk-12.0-linux.tar.gz
+    URL ${wasi-clang-url}
     DOWNLOAD_EXTRACT_TIMESTAMP false
-    )
-endif()
-FetchContent_GetProperties(wasiclang)
-if(NOT wasiclang_POPULATED)
-  FetchContent_Populate(wasiclang)
+  )
+  FetchContent_GetProperties(wasiclang)
+  if(NOT wasiclang_POPULATED)
+    FetchContent_Populate(wasiclang)
+  endif()
+  set(SHOULD_BUILD_WASICLANG OFF)
+else()
+  # We'll build wasi-clang this locally when we build this repo
+  set(SHOULD_BUILD_WASICLANG ON)
+  set(wasiclang_SOURCE_DIR "${CMAKE_SOURCE_DIR}/wasi-sdk-21-src/build/install/opt/wasi-sdk")
+  message(STATUS "Prebuilt wasi-clang does not exist for this platform, so we have to build it from scratch. Your first build may take a long time!")
 endif()
 
 FetchContent_Declare(
@@ -198,8 +202,23 @@ add_custom_command(OUTPUT "${WASM2C_PATH}"
                            --parallel
                    COMMENT "Building wasm2c compiler and runtime")
 
+set (WASICLANG_CHECKED "${CMAKE_BINARY_DIR}/wasiclang-checked.txt")
+
+if (SHOULD_BUILD_WASICLANG)
+  add_custom_command(OUTPUT "${WASICLANG_CHECKED}"
+                    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+                    COMMAND ./build-wasiclang.sh
+                    COMMAND ${CMAKE_COMMAND} -E touch "${WASICLANG_CHECKED}"
+                    COMMENT "Building wasi clang")
+else()
+  add_custom_command(OUTPUT "${WASICLANG_CHECKED}"
+                    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+                    COMMAND ${CMAKE_COMMAND} -E touch "${WASICLANG_CHECKED}"
+                    COMMENT "Using downloaded wasi-clang")
+endif()
+
 add_custom_command(OUTPUT "${GLUE_LIB_IMPORTED_H}" "${GLUE_LIB_IMPORTED_C}" "${GLUE_LIB_IMPORTED_WASM}"
-                   DEPENDS ${C_SOURCE_FILES} ${WASM2C_PATH}
+                   DEPENDS ${C_SOURCE_FILES} ${WASM2C_PATH} ${WASICLANG_CHECKED}
                     COMMAND ${CMAKE_COMMAND} -E make_directory ${GLUE_LIB_WASM_IMPORTED_DIR}
                     COMMAND ${wasiclang_SOURCE_DIR}/bin/clang
                             --sysroot ${wasiclang_SOURCE_DIR}/share/wasi-sysroot/
@@ -214,7 +233,7 @@ add_custom_command(OUTPUT "${GLUE_LIB_IMPORTED_H}" "${GLUE_LIB_IMPORTED_C}" "${G
                    COMMENT "Building wasm sandboxed library with imported memory and imported table")
 
 add_custom_command(OUTPUT "${GLUE_LIB_EXPORTED_H}" "${GLUE_LIB_EXPORTED_C}" "${GLUE_LIB_EXPORTED_WASM}"
-                   DEPENDS ${C_SOURCE_FILES} ${WASM2C_PATH}
+                   DEPENDS ${C_SOURCE_FILES} ${WASM2C_PATH} ${WASICLANG_CHECKED}
                     COMMAND ${CMAKE_COMMAND} -E make_directory ${GLUE_LIB_WASM_EXPORTED_DIR}
                     COMMAND ${wasiclang_SOURCE_DIR}/bin/clang
                             --sysroot ${wasiclang_SOURCE_DIR}/share/wasi-sysroot/
