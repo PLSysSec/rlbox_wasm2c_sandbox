@@ -122,7 +122,7 @@ endif()
 FetchContent_Declare(
   wasm2c_compiler
   GIT_REPOSITORY https://github.com/WebAssembly/wabt/
-  GIT_TAG 40be47dbfceea07951325dd2197a96c74d8c77a8)
+  GIT_TAG main)
 FetchContent_GetProperties(wasm2c_compiler)
 if(NOT wasm2c_compiler_POPULATED)
   FetchContent_Populate(wasm2c_compiler)
