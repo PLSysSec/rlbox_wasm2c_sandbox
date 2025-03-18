@@ -98,20 +98,20 @@ list(APPEND CMAKE_MODULE_PATH "${catch2_SOURCE_DIR}/contrib")
 if (WIN32)
   FetchContent_Declare(
     wasiclang
-    URL
-      https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-12/wasi-sdk-12.0-mingw.tar.gz
+    URL https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-12/wasi-sdk-12.0-mingw.tar.gz
+    DOWNLOAD_EXTRACT_TIMESTAMP false
     )
 elseif (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
   FetchContent_Declare(
     wasiclang
-    URL
-      https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-12/wasi-sdk-12.0-macos.tar.gz
+    URL https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-12/wasi-sdk-12.0-macos.tar.gz
+    DOWNLOAD_EXTRACT_TIMESTAMP false
     )
 else()
   FetchContent_Declare(
     wasiclang
-    URL
-      https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-12/wasi-sdk-12.0-linux.tar.gz
+    URL https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-12/wasi-sdk-12.0-linux.tar.gz
+    DOWNLOAD_EXTRACT_TIMESTAMP false
     )
 endif()
 FetchContent_GetProperties(wasiclang)
@@ -120,15 +120,15 @@ if(NOT wasiclang_POPULATED)
 endif()
 
 FetchContent_Declare(
-  mod_wasm2c
+  wasm2c_compiler
   GIT_REPOSITORY https://github.com/WebAssembly/wabt/
   GIT_TAG 40be47dbfceea07951325dd2197a96c74d8c77a8)
-FetchContent_GetProperties(mod_wasm2c)
-if(NOT mod_wasm2c_POPULATED)
-  FetchContent_Populate(mod_wasm2c)
+FetchContent_GetProperties(wasm2c_compiler)
+if(NOT wasm2c_compiler_POPULATED)
+  FetchContent_Populate(wasm2c_compiler)
 endif()
 
-# set (mod_wasm2c_SOURCE_DIR "${CMAKE_SOURCE_DIR}/../wabt/")
+# set (wasm2c_compiler_SOURCE_DIR "${CMAKE_SOURCE_DIR}/../wabt/")
 
 if(DEV)
   if(MSVC)
@@ -164,8 +164,8 @@ endif()
 
 # wasm2c ###################
 
-set(WASM2C_RUNTIME_SOURCE_DIR "${mod_wasm2c_SOURCE_DIR}/wasm2c/")
-set(WASM2C_RUNTIME_DIR "${mod_wasm2c_SOURCE_DIR}/build_${WASM2C_BUILD_DIR_SUFFIX}/")
+set(WASM2C_RUNTIME_SOURCE_DIR "${wasm2c_compiler_SOURCE_DIR}/wasm2c/")
+set(WASM2C_RUNTIME_DIR "${wasm2c_compiler_SOURCE_DIR}/build_${WASM2C_BUILD_DIR_SUFFIX}/")
 
 set(C_SOURCE_FILES "${CMAKE_SOURCE_DIR}/c_src/wasm2c_sandbox_wrapper.c")
 set(GLUE_LIB_WASM_IMPORTED_DIR "${CMAKE_BINARY_DIR}/wasm_imported/")
@@ -184,7 +184,7 @@ else()
 endif()
 
 add_custom_command(OUTPUT "${WASM2C_PATH}"
-                   WORKING_DIRECTORY "${mod_wasm2c_SOURCE_DIR}"
+                   WORKING_DIRECTORY "${wasm2c_compiler_SOURCE_DIR}"
                    COMMAND ${CMAKE_COMMAND}
                            -DCMAKE_BUILD_TYPE=${WASM2C_BUILD_TYPE}
                            -DCMAKE_C_FLAGS="${RLBOX_SANITIZER_COMPILE_FLAGS}"
@@ -245,8 +245,8 @@ set(WASM2C_RUNTIME_CODE ${WASM2C_RUNTIME_SOURCE_DIR}/wasm-rt-impl.c
                         ${CMAKE_SOURCE_DIR}/src/wasm2c_rt_mem.c)
 
 add_library(glue_lib_imported STATIC ${GLUE_LIB_IMPORTED_C} ${WASM2C_RUNTIME_CODE})
-target_include_directories(glue_lib_imported PRIVATE ${mod_wasm2c_SOURCE_DIR}/wasm2c
-                                             PUBLIC ${mod_wasm2c_SOURCE_DIR}/third_party/simde
+target_include_directories(glue_lib_imported PRIVATE ${wasm2c_compiler_SOURCE_DIR}/wasm2c
+                                             PUBLIC ${wasm2c_compiler_SOURCE_DIR}/third_party/simde
                                              PRIVATE ${CMAKE_SOURCE_DIR}/include)
 
 target_compile_definitions(glue_lib_imported PUBLIC WASM_RT_USE_MMAP=1
@@ -254,8 +254,8 @@ target_compile_definitions(glue_lib_imported PUBLIC WASM_RT_USE_MMAP=1
                                              PUBLIC WASM_RT_NONCONFORMING_UNCHECKED_STACK_EXHAUSTION=1)
 
 add_library(glue_lib_exported STATIC ${GLUE_LIB_EXPORTED_C} ${WASM2C_RUNTIME_CODE})
-target_include_directories(glue_lib_exported PRIVATE ${mod_wasm2c_SOURCE_DIR}/wasm2c
-                                             PUBLIC ${mod_wasm2c_SOURCE_DIR}/third_party/simde
+target_include_directories(glue_lib_exported PRIVATE ${wasm2c_compiler_SOURCE_DIR}/wasm2c
+                                             PUBLIC ${wasm2c_compiler_SOURCE_DIR}/third_party/simde
                                              PRIVATE ${CMAKE_SOURCE_DIR}/include)
 
 target_compile_definitions(glue_lib_exported PUBLIC WASM_RT_USE_MMAP=1
@@ -278,7 +278,7 @@ target_include_directories(test_rlbox_glue PUBLIC ${CMAKE_SOURCE_DIR}/include
                                            PUBLIC ${rlbox_SOURCE_DIR}/code/include
                                            PUBLIC ${rlbox_SOURCE_DIR}/code/tests/rlbox_glue
                                            PUBLIC ${rlbox_SOURCE_DIR}/code/tests/rlbox_glue/lib
-                                           PUBLIC ${mod_wasm2c_SOURCE_DIR}/wasm2c
+                                           PUBLIC ${wasm2c_compiler_SOURCE_DIR}/wasm2c
                                            PUBLIC ${GLUE_LIB_WASM_IMPORTED_DIR}
                                            )
 target_link_libraries(test_rlbox_glue Catch2::Catch2
@@ -300,7 +300,7 @@ target_include_directories(test_rlbox_glue_exported PUBLIC ${CMAKE_SOURCE_DIR}/i
                                                     PUBLIC ${rlbox_SOURCE_DIR}/code/include
                                                     PUBLIC ${rlbox_SOURCE_DIR}/code/tests/rlbox_glue
                                                     PUBLIC ${rlbox_SOURCE_DIR}/code/tests/rlbox_glue/lib
-                                                    PUBLIC ${mod_wasm2c_SOURCE_DIR}/wasm2c
+                                                    PUBLIC ${wasm2c_compiler_SOURCE_DIR}/wasm2c
                                                     PUBLIC ${GLUE_LIB_WASM_EXPORTED_DIR}
                                                     )
 target_link_libraries(test_rlbox_glue_exported Catch2::Catch2
@@ -322,7 +322,7 @@ target_include_directories(test_rlbox_glue_smallheap PUBLIC ${CMAKE_SOURCE_DIR}/
                                            PUBLIC ${rlbox_SOURCE_DIR}/code/include
                                            PUBLIC ${rlbox_SOURCE_DIR}/code/tests/rlbox_glue
                                            PUBLIC ${rlbox_SOURCE_DIR}/code/tests/rlbox_glue/lib
-                                           PUBLIC ${mod_wasm2c_SOURCE_DIR}/wasm2c
+                                           PUBLIC ${wasm2c_compiler_SOURCE_DIR}/wasm2c
                                            PUBLIC ${GLUE_LIB_WASM_IMPORTED_DIR}
                                            )
 target_link_libraries(test_rlbox_glue_smallheap Catch2::Catch2
@@ -344,7 +344,7 @@ target_include_directories(test_rlbox_glue_embed PUBLIC ${CMAKE_SOURCE_DIR}/incl
                                            PUBLIC ${rlbox_SOURCE_DIR}/code/include
                                            PUBLIC ${rlbox_SOURCE_DIR}/code/tests/rlbox_glue
                                            PUBLIC ${rlbox_SOURCE_DIR}/code/tests/rlbox_glue/lib
-                                           PUBLIC ${mod_wasm2c_SOURCE_DIR}/wasm2c
+                                           PUBLIC ${wasm2c_compiler_SOURCE_DIR}/wasm2c
                                            PUBLIC ${GLUE_LIB_WASM_IMPORTED_DIR}
                                            )
 target_link_libraries(test_rlbox_glue_embed Catch2::Catch2
