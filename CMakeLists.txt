@@ -7,7 +7,7 @@ project(rlbox_wasm2c
 
 # Project Settings ###################
 
-# set(CMAKE_VERBOSE_MAKEFILE ON)
+# set(CMAKE_VERBOSE_MAKEFILE wasm2c: support the custom-page-sizes proposal #2508  ON)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -122,7 +122,7 @@ endif()
 FetchContent_Declare(
   mod_wasm2c
   GIT_REPOSITORY https://github.com/WebAssembly/wabt/
-  GIT_TAG main)
+  GIT_TAG 40be47dbfceea07951325dd2197a96c74d8c77a8)
 FetchContent_GetProperties(mod_wasm2c)
 if(NOT mod_wasm2c_POPULATED)
   FetchContent_Populate(mod_wasm2c)
