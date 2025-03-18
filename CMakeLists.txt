@@ -96,7 +96,7 @@ add_subdirectory("${catch2_SOURCE_DIR}")
 list(APPEND CMAKE_MODULE_PATH "${catch2_SOURCE_DIR}/contrib")
 
 if (WIN32)
-  set (wasi-clang-url "https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-21/wasi-sdk-21.0-mingw.tar.gz")
+  set (wasi-clang-url "https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-21/wasi-sdk-21.0.m-mingw.tar.gz")
 elseif (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
   set (wasi-clang-url "https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-21/wasi-sdk-21.0-macos.tar.gz")
 elseif (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
