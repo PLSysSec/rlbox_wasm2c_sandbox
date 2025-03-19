@@ -315,7 +315,7 @@ static int os_mmap_commit(void* curr_heap_end_pointer,
 
 #  include <sys/mman.h>
 #  include <unistd.h>
-#if !(defined(__APPLE__) && defined(__MACH__))
+#if defined(linux)
 #  include <sys/prctl.h>
 #endif
 
@@ -431,7 +431,7 @@ static void* os_mmap_aligned(void* addr,
     }
   }
 
-#if !(defined(__APPLE__) && defined(__MACH__))
+#if defined(linux)
   if (name) {
     // Ignore errors here as this is best effort
     prctl(PR_SET_VMA, PR_SET_VMA_ANON_NAME,
