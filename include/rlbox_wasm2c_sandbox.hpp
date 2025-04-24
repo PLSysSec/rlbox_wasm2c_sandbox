@@ -201,7 +201,7 @@ namespace wasm2c_detail {
     static_assert(std::is_void_v<T>, "Missing specialization");
     using type = void;
     // wasm2c has no void type so use i32 for now
-    static constexpr wasm_rt_type_t wasm2c_type = WASM_RT_I32;
+    static constexpr int wasm2c_type = (int) WASM_RT_I32;
   };
 
   template<typename T>
@@ -211,7 +211,7 @@ namespace wasm2c_detail {
                      sizeof(uint32_t)>>
   {
     using type = uint32_t;
-    static constexpr wasm_rt_type_t wasm2c_type = WASM_RT_I32;
+    static constexpr int wasm2c_type = (int) WASM_RT_I32;
   };
 
   template<typename T>
@@ -222,7 +222,7 @@ namespace wasm2c_detail {
                      sizeof(T) <= sizeof(uint64_t)>>
   {
     using type = uint64_t;
-    static constexpr wasm_rt_type_t wasm2c_type = WASM_RT_I64;
+    static constexpr int wasm2c_type = (int) WASM_RT_I64;
   };
 
   template<typename T>
@@ -230,7 +230,7 @@ namespace wasm2c_detail {
                                    std::enable_if_t<std::is_same_v<T, float>>>
   {
     using type = T;
-    static constexpr wasm_rt_type_t wasm2c_type = WASM_RT_F32;
+    static constexpr int wasm2c_type = (int) WASM_RT_F32;
   };
 
   template<typename T>
@@ -238,7 +238,7 @@ namespace wasm2c_detail {
                                    std::enable_if_t<std::is_same_v<T, double>>>
   {
     using type = T;
-    static constexpr wasm_rt_type_t wasm2c_type = WASM_RT_F64;
+    static constexpr int wasm2c_type = (int) WASM_RT_F64;
   };
 
   template<typename T>
@@ -249,7 +249,7 @@ namespace wasm2c_detail {
     // pointers are 32 bit indexes in wasm
     // class paramters are passed as a pointer to an object in the stack or heap
     using type = uint32_t;
-    static constexpr wasm_rt_type_t wasm2c_type = WASM_RT_I32;
+    static constexpr int wasm2c_type = (int) WASM_RT_I32;
   };
 
   ///////////////////////////////////////////////////////////////
