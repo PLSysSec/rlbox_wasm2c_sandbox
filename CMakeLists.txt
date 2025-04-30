@@ -58,27 +58,11 @@ endif()
 
 # Dependencies ###################
 
-find_program(CARGO "cargo")
-if(!CARGO)
-  message(
-    FATAL_ERROR
-      "Could not find cargo. Please instal/l cargo as it is needed to build rust libraries."
-    )
-endif()
-
-find_program(EMCC "emcc")
-if(!EMCC)
-  message(
-    FATAL_ERROR
-      "Could not find emcc. Please install emcc as it is needed to generate the wasm2c sandbox."
-    )
-endif()
-
 include(FetchContent)
 
 FetchContent_Declare(
   rlbox
-  GIT_REPOSITORY https://github.com/PLSysSec/rlbox_api_cpp17.git)
+  GIT_REPOSITORY https://github.com/PLSysSec/rlbox.git)
 FetchContent_GetProperties(rlbox)
 if(NOT rlbox_POPULATED)
   FetchContent_Populate(rlbox)
