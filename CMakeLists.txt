@@ -92,8 +92,8 @@ endif()
 if (WIN32 OR ${CMAKE_SYSTEM_NAME} MATCHES "Darwin" OR ${CMAKE_SYSTEM_NAME} MATCHES "Linux")
   FetchContent_Declare(
     wasiclang
-    URL ${wasi-clang-url}
     DOWNLOAD_EXTRACT_TIMESTAMP false
+    URL ${wasi-clang-url}
   )
   FetchContent_GetProperties(wasiclang)
   if(NOT wasiclang_POPULATED)
