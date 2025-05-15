@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.13)
 cmake_policy(VERSION 3.16)
+# TODO: Migrate from FetchContent_Populate
 
 project(rlbox_wasm2c
         VERSION 0.1
