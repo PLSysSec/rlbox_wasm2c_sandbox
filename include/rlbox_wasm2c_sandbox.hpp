@@ -51,6 +51,10 @@
 #  endif
 #endif
 
+#if WABT_BIG_ENDIAN
+#error "WABT_BIG_ENDIAN is currently not supported"
+#endif
+
 #define DEFINE_RLBOX_WASM2C_MODULE_TYPE(modname)                                   \
   struct rlbox_wasm2c_module_type_##modname                                        \
   {                                                                                \
