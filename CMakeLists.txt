@@ -81,7 +81,7 @@ endif()
 add_subdirectory("${catch2_SOURCE_DIR}")
 list(APPEND CMAKE_MODULE_PATH "${catch2_SOURCE_DIR}/contrib")
 
-if (${CMAKE_HOST_SYSTEM_PROCESSOR} MATCHES "x86_64")
+if (${CMAKE_HOST_SYSTEM_PROCESSOR} MATCHES "x86_64" OR ${CMAKE_HOST_SYSTEM_PROCESSOR} MATCHES "AMD64")
   if (WIN32)
     set (wasi-clang-url "https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-21/wasi-sdk-21.0.m-mingw.tar.gz")
   elseif (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
