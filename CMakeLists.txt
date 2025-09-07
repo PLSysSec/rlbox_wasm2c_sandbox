@@ -92,6 +92,7 @@ if (${CMAKE_HOST_SYSTEM_PROCESSOR} MATCHES "x86_64" OR ${CMAKE_HOST_SYSTEM_PROCE
     set (wasi-clang-url "")
   endif()
 else()
+  message(STATUS "Host platform found: ${CMAKE_HOST_SYSTEM_PROCESSOR}")
   set (wasi-clang-url "")
 endif()
 
