@@ -114,6 +114,15 @@
 #  error "Expected definition for RLBOX_WASM2C_MODULE_NAME"
 #endif
 
+// Concat after macro expansion
+#define RLBOX_WASM2C_CONCAT2_HELPER(x, y) x##y
+#define RLBOX_WASM2C_CONCAT(x, y) RLBOX_WASM2C_CONCAT2_HELPER(x, y)
+#define RLBOX_WASM2C_CONCAT3_HELPER(x, y, z) x##y##z
+#define RLBOX_WASM2C_CONCAT3(x, y, z) RLBOX_WASM2C_CONCAT3_HELPER(x, y, z)
+
+// #define RLBOX_WASM2C_MANGLED_MODULE_NAME() RLBOX_WASM2C_MODULE_NAME
+#define RLBOX_WASM2C_MANGLED_MODULE_NAME() RLBOX_WASM2C_CONCAT3(0x24, RLBOX_WASM2C_MODULE_NAME, 0x2Ewasm)
+
 // Need an extra macro to expand RLBOX_WASM2C_MODULE_NAME
 #define INVOKE_DEFINE_RLBOX_WASM2C_MODULE_TYPE(modname)                        \
   DEFINE_RLBOX_WASM2C_MODULE_TYPE(modname)
@@ -125,14 +134,10 @@
   DEFINE_RLBOX_WASM2C_EXPORTED_MODULE_ATTRIBS(modname)
 
 // Define the base wasm2c module type
-INVOKE_DEFINE_RLBOX_WASM2C_MODULE_TYPE(RLBOX_WASM2C_MODULE_NAME);
-
-// Concat after macro expansion
-#define RLBOX_WASM2C_CONCAT2(x, y) x##y
-#define RLBOX_WASM2C_CONCAT(x, y) RLBOX_WASM2C_CONCAT2(x, y)
+INVOKE_DEFINE_RLBOX_WASM2C_MODULE_TYPE(RLBOX_WASM2C_MANGLED_MODULE_NAME());
 
 #define RLBOX_WASM_MODULE_TYPE_CURR                                            \
-  RLBOX_WASM2C_CONCAT(rlbox_wasm2c_module_type_, RLBOX_WASM2C_MODULE_NAME)
+  RLBOX_WASM2C_CONCAT(rlbox_wasm2c_module_type_, RLBOX_WASM2C_MANGLED_MODULE_NAME())
 
 #define RLBOX_WASM2C_STRINGIFY(x) RLBOX_WASM2C_STRINGIFY2(x)
 #define RLBOX_WASM2C_STRINGIFY2(x) #x
@@ -140,12 +145,8 @@ INVOKE_DEFINE_RLBOX_WASM2C_MODULE_TYPE(RLBOX_WASM2C_MODULE_NAME);
 #define RLBOX_WASM2C_MODULE_NAME_STR                                           \
   RLBOX_WASM2C_STRINGIFY(RLBOX_WASM2C_MODULE_NAME)
 
-#define RLBOX_WASM2C_MODULE_FUNC_HELPER2(part1, part2, part3)                  \
-  part1##part2##part3
-#define RLBOX_WASM2C_MODULE_FUNC_HELPER(part1, part2, part3)                   \
-  RLBOX_WASM2C_MODULE_FUNC_HELPER2(part1, part2, part3)
 #define RLBOX_WASM2C_MODULE_FUNC(name)                                         \
-  RLBOX_WASM2C_MODULE_FUNC_HELPER(w2c_, RLBOX_WASM2C_MODULE_NAME, name)
+  RLBOX_WASM2C_CONCAT3(w2c_, RLBOX_WASM2C_MANGLED_MODULE_NAME(), name)
 
 namespace rlbox {
 
@@ -558,7 +559,7 @@ public:
       sandbox_memory_info = &local_sandbox_memory_info;
       sandbox_callback_table = &local_sandbox_callback_table;
 
-      INVOKE_DEFINE_RLBOX_WASM2C_IMPORTED_MODULE_ATTRIBS(RLBOX_WASM2C_MODULE_NAME);
+      INVOKE_DEFINE_RLBOX_WASM2C_IMPORTED_MODULE_ATTRIBS(RLBOX_WASM2C_MANGLED_MODULE_NAME());
 
       *sandbox_memory_info = create_wasm2c_memory(
         *initial_memory_pages, custom_capacity, instance_name? instance_name : "rlbox_wasm2c");
@@ -583,7 +584,7 @@ public:
       auto create_instance_func = (RLBOX_WASM_MODULE_TYPE_CURR::create_instance_imported_t) RLBOX_WASM_MODULE_TYPE_CURR::create_instance;
       create_instance_func(&wasm2c_instance, &sandbox_memory_env, &wasi_env);
     } else {
-      INVOKE_DEFINE_RLBOX_WASM2C_EXPORTED_MODULE_ATTRIBS(RLBOX_WASM2C_MODULE_NAME);
+      INVOKE_DEFINE_RLBOX_WASM2C_EXPORTED_MODULE_ATTRIBS(RLBOX_WASM2C_MANGLED_MODULE_NAME());
       sandbox_memory_info = get_exported_memory(&wasm2c_instance);
       sandbox_callback_table = get_exported_table(&wasm2c_instance);
 
