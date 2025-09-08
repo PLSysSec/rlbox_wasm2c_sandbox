@@ -122,7 +122,7 @@ if (WIN32 OR ${CMAKE_SYSTEM_NAME} MATCHES "Darwin" OR ${CMAKE_SYSTEM_NAME} MATCH
 else()
   # We'll build wasi-clang this locally when we build this repo
   set(SHOULD_BUILD_WASICLANG ON)
-  set(wasiclang_SOURCE_DIR "${CMAKE_SOURCE_DIR}/wasi-sdk-21-src/build/install/opt/wasi-sdk")
+  set(wasiclang_SOURCE_DIR "${CMAKE_SOURCE_DIR}/wasi-sdk-27-src/build/install/opt/wasi-sdk")
   message(STATUS "Prebuilt wasi-clang does not exist for this platform, so we have to build it from scratch. Your first build may take a long time!")
 endif()
 
