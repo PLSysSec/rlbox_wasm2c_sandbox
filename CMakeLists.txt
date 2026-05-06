@@ -235,13 +235,27 @@ add_custom_command(OUTPUT "${GLUE_LIB_IMPORTED_H}" "${GLUE_LIB_IMPORTED_C}" "${G
                             ${GLUE_LIB_IMPORTED_WASM}
                    COMMENT "Building wasm sandboxed library with imported memory and imported table")
 
+if (CMAKE_SIZEOF_VOID_P EQUAL 4)
+# Wasm programs that create their own memory (exported memory) using memory-32
+# by default have the max size set to 4GB. However, since RLBox's wasm2c runtime
+# does wants immovable Wasm memory, it has to pre-reserve enough space for the
+# whole Wasm program. This is fine on 64-bit systems, but on 32-systems, this
+# just fails as mmap returns an error and the programs exit. So on 32-bit systems, Wasm files with
+# exported memory should have a sensible limit. We pick 1GB.
+
+  message(STATUS "32-bit platform. Setting Wasm exported memory limit")
+  set(WASM_EXPORTED_MEM_LIMIT "-Wl,--max-memory=1073741824")
+else()
+  set(WASM_EXPORTED_MEM_LIMIT "")
+endif ()
+
 add_custom_command(OUTPUT "${GLUE_LIB_EXPORTED_H}" "${GLUE_LIB_EXPORTED_C}" "${GLUE_LIB_EXPORTED_WASM}"
                    DEPENDS ${C_SOURCE_FILES} ${WASM2C_PATH} ${WASICLANG_CHECKED}
                     COMMAND ${CMAKE_COMMAND} -E make_directory ${GLUE_LIB_WASM_EXPORTED_DIR}
                     COMMAND ${wasiclang_SOURCE_DIR}/bin/clang
                             --sysroot ${wasiclang_SOURCE_DIR}/share/wasi-sysroot/
                             -O3
-                            -Wl,--export-all -Wl,--no-entry -Wl,--growable-table -Wl,--stack-first -Wl,-z,stack-size=1048576 -Wl,--export-table
+                            -Wl,--export-all -Wl,--no-entry -Wl,--growable-table -Wl,--stack-first -Wl,-z,stack-size=1048576 -Wl,--export-table ${WASM_EXPORTED_MEM_LIMIT}
                             -o ${GLUE_LIB_EXPORTED_WASM}
                             ${CMAKE_SOURCE_DIR}/c_src/wasm2c_sandbox_wrapper.c
                             ${rlbox_SOURCE_DIR}/code/tests/rlbox_glue/lib/libtest.c
