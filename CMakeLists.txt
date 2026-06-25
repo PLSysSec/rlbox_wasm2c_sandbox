@@ -64,7 +64,8 @@ include(FetchContent)
 
 FetchContent_Declare(
   rlbox
-  GIT_REPOSITORY https://github.com/PLSysSec/rlbox.git)
+  GIT_REPOSITORY https://github.com/PLSysSec/rlbox.git
+  GIT_TAG main)
 FetchContent_GetProperties(rlbox)
 if(NOT rlbox_POPULATED)
   FetchContent_Populate(rlbox)
