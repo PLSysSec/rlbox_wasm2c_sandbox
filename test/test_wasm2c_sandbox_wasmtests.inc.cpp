@@ -65,6 +65,7 @@ TEST_CASE("wasm sandbox glue tests " TestName, "[wasm_sandbox_glue_tests]")
       }
       return nr;
     });
+    (void) nr;
 
     tainted<char***, TestType> t_slst = sandbox.malloc_in_sandbox<char**>();
     *t_slst = sandbox.malloc_in_sandbox<char*>();
