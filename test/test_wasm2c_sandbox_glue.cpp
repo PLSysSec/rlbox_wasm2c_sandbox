@@ -3,7 +3,7 @@
 #define RLBOX_SINGLE_THREADED_INVOCATIONS
 #define RLBOX_USE_STATIC_CALLS() rlbox_wasm2c_sandbox_lookup_symbol
 #define RLBOX_WASM2C_MODULE_NAME glue__lib__wasm2c
-#include "glue_lib_wasm2c.h" // IWYU pragma: keep
+#include "glue_lib_wasm2c.h"        // IWYU pragma: keep
 #include "rlbox_wasm2c_sandbox.hpp" // IWYU pragma: keep
 
 // NOLINTNEXTLINE

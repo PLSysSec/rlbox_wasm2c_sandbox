@@ -34,21 +34,22 @@ TEST_CASE("wasm sandbox glue tests " TestName, "[wasm_sandbox_glue_tests]")
   rlbox::rlbox_sandbox<TestType> sandbox;
   CreateSandbox(sandbox);
 
-
   SECTION("test double pointer access with bad value") // NOLINT
   {
-    tainted<unsigned int*, TestType> ptr = sandbox.template malloc_in_sandbox<unsigned int>();
+    tainted<unsigned int*, TestType> ptr =
+      sandbox.template malloc_in_sandbox<unsigned int>();
     // *ptr = 0xffffffff;
     *ptr = 2114112;
 
-    tainted<unsigned int**, TestType> convPtr = rlbox::sandbox_reinterpret_cast<unsigned int**>(ptr);
+    tainted<unsigned int**, TestType> convPtr =
+      rlbox::sandbox_reinterpret_cast<unsigned int**>(ptr);
 
     if constexpr (sizeof(uintptr_t) == sizeof(uint32_t)) {
       // RLBox's setup doesn't use guard pages for 32-bit sandboxes, so we need
       // to check that a dereference of an OOB actually traps
-      REQUIRE_THROWS((tainted<unsigned int*, TestType>) *convPtr);
+      REQUIRE_THROWS((tainted<unsigned int*, TestType>)*convPtr);
 
-      REQUIRE_THROWS(**convPtr = 0);
+      REQUIRE_THROWS(** convPtr = 0);
     }
 
     sandbox.template free_in_sandbox(ptr);
@@ -59,7 +60,9 @@ TEST_CASE("wasm sandbox glue tests " TestName, "[wasm_sandbox_glue_tests]")
     tainted<int, TestType> tnr = 34;
 
     int nr = tnr.copy_and_verify([](int nr) {
-      if (!(nr >= 0)) { abort(); }
+      if (!(nr >= 0)) {
+        abort();
+      }
       return nr;
     });
 
@@ -71,12 +74,15 @@ TEST_CASE("wasm sandbox glue tests " TestName, "[wasm_sandbox_glue_tests]")
 
     // Pick a value "i" that when cast into a size_t and multiplied by 4 will go
     // out of bounds when used as in index, in 64-bit and 32-bit platforms
-    // The default heap size by RLBox in 64-bit platforms is 4GB and 32-bit platforms is 16MB
+    // The default heap size by RLBox in 64-bit platforms is 4GB and 32-bit
+    // platforms is 16MB
     //
     // We use int i = 0x55555555
-    // - on 64-bit platforms static_cast<size_t>(0x55555555) * 4 is 0x155555554 which is outside 4GB heap used
-    // - on 32-bit platforms static_cast<size_t>(0x55555555) * 4 is 0x55555554 which is outside 16MB heap used
-    int i = 0x55555555;//(INT32_MAX / 1.5);
+    // - on 64-bit platforms static_cast<size_t>(0x55555555) * 4 is 0x155555554
+    // which is outside 4GB heap used
+    // - on 32-bit platforms static_cast<size_t>(0x55555555) * 4 is 0x55555554
+    // which is outside 16MB heap used
+    int i = 0x55555555; //(INT32_MAX / 1.5);
 
     REQUIRE_THROWS(t_slst_ref[i]);
   }
