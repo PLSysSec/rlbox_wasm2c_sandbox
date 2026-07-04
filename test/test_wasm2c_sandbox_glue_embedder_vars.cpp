@@ -19,3 +19,6 @@ RLBOX_WASM2C_SANDBOX_STATIC_VARIABLES();
 
 // NOLINTNEXTLINE
 #include "test_sandbox_glue.inc.cpp"
+
+// NOLINTNEXTLINE
+#include "test_wasm2c_sandbox_wasmtests.inc.cpp"
