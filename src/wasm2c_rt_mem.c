@@ -68,8 +68,10 @@ wasm_rt_funcref_table_t* w2c_env_0x5F_indirect_function_table(
 // By default max heap is 4GB
 #  define WASM_HEAP_DEFAULT_MAX_PAGES 65536
 #elif UINTPTR_MAX == 0xffffffff
-// No guard pages
-#  define WASM_HEAP_GUARD_PAGE_SIZE 0
+// Single guard page as an extra safety check as a second defense for partial
+// OOB read/writes. Platforms that have non-4k pages will simply round up this
+// value to the their default page size, which will work fine.
+#  define WASM_HEAP_GUARD_PAGE_SIZE 4096
 // Unaligned heap
 #  define WASM_HEAP_ALIGNMENT 0
 // Default max heap is 16MB
